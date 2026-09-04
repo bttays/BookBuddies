@@ -162,6 +162,15 @@
 
   <main>
     <section id="tab-month" class="panel active">
+      <div class="card" id="current-card">
+        <div class="select-row" style="margin-top:0;">
+          <p class="section-title" id="current-title" style="margin:0;">Current assignments</p>
+          <button class="ghost small" id="current-copy-btn" hidden>Copy all</button>
+        </div>
+        <p class="section-sub" id="current-sub">Loading…</p>
+        <div class="match-list" id="current-list"></div>
+      </div>
+
       <div class="card">
         <p class="section-title">Who's in this round?</p>
         <p class="section-sub">Pick participants, then generate this month's buddy pairings.</p>
@@ -177,6 +186,16 @@
           </span>
         </div>
         <div id="participant-list"></div>
+
+        <div id="quick-add" style="margin-top:10px;">
+          <button class="link-btn" id="quick-add-toggle">+ Add someone who's joining</button>
+          <div class="edit-row" id="quick-add-row" hidden style="margin-top:6px;">
+            <input type="text" id="quick-add-name" placeholder="Name / username" aria-label="Name or username">
+            <input type="text" id="quick-add-link" placeholder="Wishlist link (optional)" aria-label="Wishlist link (optional)">
+            <button class="ghost small" id="quick-add-btn">Add</button>
+          </div>
+        </div>
+
         <button class="primary" id="generate-btn" disabled>Generate matches</button>
         <p class="note" id="generate-note" hidden></p>
         <p class="error-note" id="generate-error" hidden></p>
@@ -265,6 +284,16 @@
   var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "" };
 
   var els = {
+    currentCard: document.getElementById('current-card'),
+    currentTitle: document.getElementById('current-title'),
+    currentSub: document.getElementById('current-sub'),
+    currentList: document.getElementById('current-list'),
+    currentCopyBtn: document.getElementById('current-copy-btn'),
+    quickAddToggle: document.getElementById('quick-add-toggle'),
+    quickAddRow: document.getElementById('quick-add-row'),
+    quickAddName: document.getElementById('quick-add-name'),
+    quickAddLink: document.getElementById('quick-add-link'),
+    quickAddBtn: document.getElementById('quick-add-btn'),
     monthInput: document.getElementById('month-input'),
     selectCount: document.getElementById('select-count'),
     selectAll: document.getElementById('select-all'),
@@ -445,7 +474,7 @@
       state.month = lastMonth ? nextMonth(lastMonth) : currentMonthStr();
       state.selected = new Set(state.roster.map(function(p){ return p.id; }));
 
-      renderRoster(); renderMonthTab(); renderResultsForMonth(state.month); renderHistory(); renderAccess();
+      renderRoster(); renderMonthTab(); renderResultsForMonth(state.month); renderHistory(); renderAccess(); renderCurrentAssignments();
     });
   }
 
@@ -503,6 +532,60 @@
     copyText(lines.join('\n'));
   });
 
+  // ---------- render: Current assignments (always the latest generated round, regardless of the picker above) ----------
+  function renderCurrentAssignments(){
+    var round = latestRoundLocal();
+    els.currentList.innerHTML = '';
+    if (!round){
+      els.currentCard.hidden = false;
+      els.currentTitle.textContent = 'Current assignments';
+      els.currentSub.textContent = 'No round has been generated yet.';
+      els.currentCopyBtn.hidden = true;
+      return;
+    }
+    els.currentCopyBtn.hidden = false;
+    els.currentTitle.textContent = monthLabel(round.month) + ' assignments';
+    els.currentSub.textContent = round.pairs.length + ' pairs — this is always the most recently generated round.';
+    round.pairs.forEach(function(p){
+      var card = h('div', { class:'match-card' }, [
+        h('p', { class:'match-pair' }, [document.createTextNode(p.giverName + ' → ')].concat([h('b', { text: p.receiverName })])),
+        p.receiverLink ? h('a', { class:'match-link', href:p.receiverLink, target:'_blank', rel:'noopener', text:p.receiverLink }) : h('span', { class:'match-link', text:'no wishlist link on file' }),
+      ]);
+      card.appendChild(h('div', { class:'match-actions' }, [
+        h('button', { class:'ghost small', onclick: function(){ copyText(messageFor(p.giverName, p.receiverName, p.receiverLink)); } }, [document.createTextNode('Copy message')]),
+      ]));
+      els.currentList.appendChild(card);
+    });
+  }
+  els.currentCopyBtn.addEventListener('click', function(){
+    var round = latestRoundLocal();
+    if (!round) return;
+    var lines = ['Book Buddies — ' + monthLabel(round.month), ''];
+    round.pairs.forEach(function(p){ lines.push(messageFor(p.giverName, p.receiverName, p.receiverLink)); });
+    copyText(lines.join('\n'));
+  });
+
+  // ---------- quick-add: add a latecomer without leaving the Month tab ----------
+  els.quickAddToggle.addEventListener('click', function(){
+    els.quickAddRow.hidden = !els.quickAddRow.hidden;
+    if (!els.quickAddRow.hidden) els.quickAddName.focus();
+  });
+  els.quickAddBtn.addEventListener('click', function(){
+    var name = els.quickAddName.value.trim();
+    var link = els.quickAddLink.value.trim();
+    if (!name){ toast('Enter a name first.'); return; }
+    API.addPerson(name, link).then(function(res){
+      if (!res || res.ok === false) throw new Error((res && res.error) || 'add failed');
+      var id = res.id;
+      var existing = rosterById(id);
+      if (existing){ existing.wishlistLink = link; toast('Updated ' + name + '.'); }
+      else { state.roster.push({ id:id, name:name, wishlistLink:link }); state.roster.sort(function(a,b){ return a.name.localeCompare(b.name); }); toast('Added ' + name + ' — included in this round.'); }
+      state.selected.add(id);
+      els.quickAddName.value = ''; els.quickAddLink.value = ''; els.quickAddRow.hidden = true;
+      renderRoster(); renderMonthTab();
+    }).catch(function(){ toast('Could not add — try again.'); });
+  });
+
   els.monthInput.addEventListener('change', function(){
     state.month = els.monthInput.value || currentMonthStr();
     renderResultsForMonth(state.month);
@@ -545,6 +628,7 @@
       showResults(roundDoc);
       renderHistory();
       renderAccess();
+      renderCurrentAssignments();
       if (result.lookbackUsed < result.totalRounds){
         els.generateNote.hidden = false;
         els.generateNote.textContent = 'Had to loosen repeat-avoidance to the last ' + result.lookbackUsed + ' round(s) of history to find a valid match.';
