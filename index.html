@@ -91,16 +91,11 @@
 
   <div class="card">
     <p class="lede">Find your book buddy</p>
-    <p class="sub">Enter your Instagram username and your personal code to see who you're sending a book to this month.</p>
+    <p class="sub">Enter your Instagram username to see who you're sending a book to this month.</p>
 
     <div class="field-row">
       <label class="field-label" for="username">Instagram username</label>
       <input type="text" id="username" placeholder="yourusername" autocomplete="username">
-    </div>
-    <div class="field-row">
-      <label class="field-label" for="code">Your code</label>
-      <input type="text" id="code" placeholder="e.g. 3ERY9667MD7AF">
-      <p class="field-hint">This is the part of your <b>own</b> Amazon wishlist link right after <code>/ls/</code> or <code>/guest-view/</code> — copy it from the link you shared when you joined.</p>
     </div>
 
     <button class="primary" id="reveal-btn">Reveal my buddy</button>
@@ -115,7 +110,7 @@
     </div>
   </div>
 
-  <p class="footer-note">Not sure about your code? Ask whoever's running Book Buddies this month.</p>
+  <p class="footer-note">Trouble finding your match? Ask whoever's running Book Buddies this month.</p>
 </div>
 
 <script>
@@ -127,7 +122,6 @@
 
   var els = {
     username: document.getElementById('username'),
-    code: document.getElementById('code'),
     revealBtn: document.getElementById('reveal-btn'),
     errorNote: document.getElementById('error-note'),
     result: document.getElementById('result'),
@@ -187,10 +181,9 @@
 
   function reveal(){
     var username = els.username.value.trim();
-    var code = els.code.value.trim();
     els.errorNote.hidden = true;
-    if (!username || !code){
-      showError('Enter both your username and your code.');
+    if (!username){
+      showError('Enter your username first.');
       return;
     }
     if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
@@ -199,7 +192,7 @@
     }
     setLoading(true);
     var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
-      'action=lookupBuddy&username=' + encodeURIComponent(username) + '&code=' + encodeURIComponent(code);
+      'action=lookupBuddy&username=' + encodeURIComponent(username);
     fetch(url).then(function(res){
       if (!res.ok) throw { code: 'network' };
       return res.json();
@@ -209,7 +202,7 @@
         var err = (data && data.error) || 'unknown';
         if (err === 'no_round') showError('No pairing has been generated yet for this round — check back soon.');
         else if (err === 'not_in_round') showError('Looks like you’re not part of this month’s round.');
-        else showError('We couldn’t find a match — double check your username and code.');
+        else showError('We couldn’t find that username — double check the spelling, or ask whoever set this up.');
         return;
       }
       showResult(data);
@@ -220,7 +213,7 @@
   }
 
   els.revealBtn.addEventListener('click', reveal);
-  els.code.addEventListener('keydown', function(e){ if (e.key === 'Enter') reveal(); });
+  els.username.addEventListener('keydown', function(e){ if (e.key === 'Enter') reveal(); });
 })();
 </script>
 </body>
