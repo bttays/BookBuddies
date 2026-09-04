@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Book Buddies</title>
+<meta name="description" content="Look up your monthly book buddy and their wishlist.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Book Buddies">
+<meta name="theme-color" content="#24463B">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2324463B' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5.5c2.2-1 4.8-1 7 0v13c-2.2-1-4.8-1-7 0z'/%3E%3Cpath d='M21 5.5c-2.2-1-4.8-1-7 0v13c2.2-1 4.8-1 7 0z'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EEF0E5'%3E%3Crect width='24' height='24' rx='5' fill='%2324463B'/%3E%3Cpath d='M4 6c2.4-1 5-1 7.2 0v12.5c-2.2-1-4.8-1-7.2 0z' fill='%23EEF0E5'/%3E%3Cpath d='M20 6c-2.4-1-5-1-7.2 0v12.5c2.2-1 4.8-1 7.2 0z' fill='%23EEF0E5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B241F; --ink-soft:#57624F; --paper:#EEF0E5; --surface:#FFFFFF; --surface-2:#E3E7D6;
+    --border:rgba(27,36,31,0.14); --primary:#24463B; --primary-deep:#16302A; --primary-tint:#DCE6DF;
+    --accent:#A97C24; --accent-soft:#C9963C; --danger:#9A3324;
+    --shadow:0 1px 2px rgba(20,26,22,0.07), 0 8px 22px -14px rgba(20,26,22,0.35);
+    --radius-card:14px; --radius-pill:999px;
+    --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --font-body:'Public Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#ECE9DD; --ink-soft:#AEB6A3; --paper:#111A15; --surface:#1A2420; --surface-2:#213028;
+      --border:rgba(236,233,221,0.14); --primary:#7FB79B; --primary-deep:#5C9179; --primary-tint:rgba(127,183,155,0.16);
+      --accent:#E8C877; --accent-soft:#F0D68F; --danger:#E39178;
+      --shadow:0 1px 2px rgba(0,0,0,0.35), 0 12px 30px -16px rgba(0,0,0,0.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#ECE9DD; --ink-soft:#AEB6A3; --paper:#111A15; --surface:#1A2420; --surface-2:#213028;
+    --border:rgba(236,233,221,0.14); --primary:#7FB79B; --primary-deep:#5C9179; --primary-tint:rgba(127,183,155,0.16);
+    --accent:#E8C877; --accent-soft:#F0D68F; --danger:#E39178;
+    --shadow:0 1px 2px rgba(0,0,0,0.35), 0 12px 30px -16px rgba(0,0,0,0.7);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; min-height:100vh; }
+  .app{ max-width:420px; margin:0 auto; padding:40px 20px 60px; display:flex; flex-direction:column; min-height:100vh; }
+
+  .topbar{ display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:28px; }
+  .mark{ width:32px; height:32px; color:var(--primary); flex:0 0 auto; }
+  .brand h1{ font-family:var(--font-display); font-size:1.5rem; font-weight:700; margin:0; letter-spacing:-0.01em; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:22px 20px; box-shadow:var(--shadow); }
+  .lede{ font-family:var(--font-display); font-size:1.2rem; font-weight:600; margin:0 0 6px; text-wrap:balance; }
+  .sub{ font-size:0.86rem; color:var(--ink-soft); margin:0 0 18px; line-height:1.5; }
+
+  .field-row{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+  label.field-label{ font-size:0.72rem; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em; font-family:var(--font-mono); }
+  .field-hint{ font-size:0.76rem; color:var(--ink-soft); margin:2px 0 0; line-height:1.45; }
+  input[type=text]{ font-family:var(--font-body); font-size:1rem; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--paper); color:var(--ink); width:100%; }
+  input:focus-visible, button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  button.primary{ background:var(--primary); color:#fff; border:none; padding:14px 18px; border-radius:12px; font-family:var(--font-body); font-weight:700; font-size:1rem; cursor:pointer; box-shadow:var(--shadow); width:100%; margin-top:4px; }
+  button.primary:active{ transform:translateY(1px); }
+  button.primary:disabled{ opacity:0.5; cursor:not-allowed; }
+  button.ghost{ background:transparent; border:1px solid var(--border); color:var(--ink); padding:11px 14px; border-radius:12px; font-weight:600; font-size:0.88rem; cursor:pointer; font-family:var(--font-body); width:100%; }
+
+  .error-note{ font-size:0.84rem; color:var(--danger); margin-top:12px; line-height:1.5; }
+
+  .result{ margin-top:18px; padding-top:18px; border-top:1px solid var(--border); display:none; }
+  .result.show{ display:block; }
+  .result-eyebrow{ font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-soft); font-family:var(--font-mono); margin:0 0 6px; }
+  .result-name{ font-family:var(--font-display); font-size:1.6rem; font-weight:700; margin:0 0 4px; text-wrap:balance; }
+  .result-sub{ font-size:0.86rem; color:var(--ink-soft); margin:0 0 16px; }
+  .result-link{ display:block; font-family:var(--font-mono); font-size:0.76rem; color:var(--primary-deep); text-decoration:none; word-break:break-all; background:var(--primary-tint); padding:10px 12px; border-radius:10px; margin-bottom:12px; }
+
+  .footer-note{ text-align:center; font-size:0.74rem; color:var(--ink-soft); margin-top:22px; }
+
+  .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 5.5c2.2-1 4.8-1 7 0v13c-2.2-1-4.8-1-7 0z"></path>
+      <path d="M21 5.5c-2.2-1-4.8-1-7 0v13c2.2-1 4.8-1 7 0z"></path>
+    </svg>
+    <div class="brand"><h1>Book Buddies</h1></div>
+  </header>
+
+  <div class="card">
+    <p class="lede">Find your book buddy</p>
+    <p class="sub">Enter your Instagram username and your personal code to see who you're sending a book to this month.</p>
+
+    <div class="field-row">
+      <label class="field-label" for="username">Instagram username</label>
+      <input type="text" id="username" placeholder="yourusername" autocomplete="username">
+    </div>
+    <div class="field-row">
+      <label class="field-label" for="code">Your code</label>
+      <input type="text" id="code" placeholder="e.g. 3ERY9667MD7AF">
+      <p class="field-hint">This is the part of your <b>own</b> Amazon wishlist link right after <code>/ls/</code> or <code>/guest-view/</code> — copy it from the link you shared when you joined.</p>
+    </div>
+
+    <button class="primary" id="reveal-btn">Reveal my buddy</button>
+    <p class="error-note" id="error-note" hidden></p>
+
+    <div class="result" id="result">
+      <p class="result-eyebrow" id="result-month"></p>
+      <p class="result-name" id="result-name"></p>
+      <p class="result-sub">Send them a book from their wishlist:</p>
+      <a class="result-link" id="result-link" target="_blank" rel="noopener"></a>
+      <button class="ghost" id="copy-btn">Copy wishlist link</button>
+    </div>
+  </div>
+
+  <p class="footer-note">Not sure about your code? Ask whoever's running Book Buddies this month.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Fill this in once, before hosting: your deployed Apps Script Web App URL.
+  var CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbylNEF1u7vh_MVXTB8BC8FA6s9bXFYk8k3clmxyXoTbZ_1BQqcaTk-PDsFC7hMoHz5n/exec" };
+
+  var els = {
+    username: document.getElementById('username'),
+    code: document.getElementById('code'),
+    revealBtn: document.getElementById('reveal-btn'),
+    errorNote: document.getElementById('error-note'),
+    result: document.getElementById('result'),
+    resultMonth: document.getElementById('result-month'),
+    resultName: document.getElementById('result-name'),
+    resultLink: document.getElementById('result-link'),
+    copyBtn: document.getElementById('copy-btn'),
+  };
+
+  function monthLabel(m){
+    if (!m) return '';
+    var parts = m.split('-'); var y = parseInt(parts[0],10); var mo = parseInt(parts[1],10);
+    var names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return names[mo-1] + ' ' + y;
+  }
+
+  function copyText(text){
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else { fallback(); }
+  }
+
+  function setLoading(loading){
+    els.revealBtn.disabled = loading;
+    els.revealBtn.innerHTML = loading ? '<span class="spinner"></span>Looking that up…' : 'Reveal my buddy';
+  }
+
+  function showError(msg){
+    els.result.classList.remove('show');
+    els.errorNote.hidden = false;
+    els.errorNote.textContent = msg;
+  }
+
+  function showResult(data){
+    els.errorNote.hidden = true;
+    els.resultMonth.textContent = monthLabel(data.month) + ' book buddy';
+    els.resultName.textContent = data.buddyName;
+    if (data.buddyLink){
+      els.resultLink.href = data.buddyLink;
+      els.resultLink.textContent = data.buddyLink;
+      els.resultLink.style.display = '';
+      els.copyBtn.style.display = '';
+      els.copyBtn.onclick = function(){ copyText(data.buddyLink); els.copyBtn.textContent = 'Copied!'; setTimeout(function(){ els.copyBtn.textContent = 'Copy wishlist link'; }, 1800); };
+    } else {
+      els.resultLink.style.display = 'none';
+      els.copyBtn.style.display = 'none';
+    }
+    els.result.classList.add('show');
+  }
+
+  function reveal(){
+    var username = els.username.value.trim();
+    var code = els.code.value.trim();
+    els.errorNote.hidden = true;
+    if (!username || !code){
+      showError('Enter both your username and your code.');
+      return;
+    }
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      showError('This app isn’t connected yet — ask whoever set it up to finish configuring it.');
+      return;
+    }
+    setLoading(true);
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
+      'action=lookupBuddy&username=' + encodeURIComponent(username) + '&code=' + encodeURIComponent(code);
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      setLoading(false);
+      if (!data || data.ok === false){
+        var err = (data && data.error) || 'unknown';
+        if (err === 'no_round') showError('No pairing has been generated yet for this round — check back soon.');
+        else if (err === 'not_in_round') showError('Looks like you’re not part of this month’s round.');
+        else showError('We couldn’t find a match — double check your username and code.');
+        return;
+      }
+      showResult(data);
+    }).catch(function(){
+      setLoading(false);
+      showError('Something went wrong reaching the server — try again in a moment.');
+    });
+  }
+
+  els.revealBtn.addEventListener('click', reveal);
+  els.code.addEventListener('keydown', function(e){ if (e.key === 'Enter') reveal(); });
+})();
+</script>
+</body>
+</html>
