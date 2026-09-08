@@ -104,6 +104,7 @@
   .roster-name{ font-size:0.94rem; font-weight:600; }
   .roster-link{ display:block; font-family:var(--font-mono); font-size:0.72rem; color:var(--primary-deep); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
   .roster-link.empty-link{ color:var(--danger); font-style:normal; }
+  .roster-birthday{ font-size:0.72rem; color:var(--accent-soft); font-family:var(--font-mono); margin-top:3px; }
   .roster-actions{ display:flex; gap:6px; flex:0 0 auto; }
   .icon-btn{ background:none; border:1px solid var(--border); width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-soft); }
   .icon-btn.danger{ color:var(--danger); }
@@ -235,6 +236,10 @@
           <label class="field-label" for="new-link">Amazon wishlist link</label>
           <input type="url" id="new-link" placeholder="https://www.amazon.com/hz/wishlist/ls/…">
         </div>
+        <div class="field-row">
+          <label class="field-label" for="new-birthday">Birthday (optional)</label>
+          <input type="date" id="new-birthday">
+        </div>
         <button class="primary" id="add-person-btn">Add to roster</button>
       </div>
       <div class="card">
@@ -292,7 +297,7 @@
 (function(){
   "use strict";
 
-  var CONFIG = { API_URL: "" }; // optionally hardcode a deployed Apps Script URL here
+  var CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbylNEF1u7vh_MVXTB8BC8FA6s9bXFYk8k3clmxyXoTbZ_1BQqcaTk-PDsFC7hMoHz5n/exec" }; // optionally hardcode a deployed Apps Script URL here
 
   var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "" };
 
@@ -320,6 +325,7 @@
     copyAllBtn: document.getElementById('copy-all-btn'),
     newName: document.getElementById('new-name'),
     newLink: document.getElementById('new-link'),
+    newBirthday: document.getElementById('new-birthday'),
     addPersonBtn: document.getElementById('add-person-btn'),
     rosterList: document.getElementById('roster-list'),
     rosterCount: document.getElementById('roster-count'),
@@ -391,6 +397,32 @@
     var d = new Date(); var mo = d.getMonth()+1;
     return d.getFullYear() + '-' + (mo < 10 ? '0'+mo : ''+mo);
   }
+  var MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function parseBirthday(raw){
+    if (!raw) return null;
+    var s = String(raw).trim();
+    if (!s) return null;
+    var iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso){
+      var mm2 = ('0'+iso[2]).slice(-2), dd2 = ('0'+iso[3]).slice(-2);
+      return { month: parseInt(iso[2],10), day: parseInt(iso[3],10), iso: iso[1]+'-'+mm2+'-'+dd2 };
+    }
+    var md = s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+    if (md){
+      var mm = ('0'+md[1]).slice(-2), dd = ('0'+md[2]).slice(-2);
+      var yyyy = md[3] ? (md[3].length===2 ? '20'+md[3] : md[3]) : String(new Date().getFullYear());
+      return { month: parseInt(md[1],10), day: parseInt(md[2],10), iso: yyyy+'-'+mm+'-'+dd };
+    }
+    return null;
+  }
+  function birthdayLabel(raw){
+    var p = parseBirthday(raw);
+    return p ? (MONTH_NAMES[p.month-1] + ' ' + p.day) : '';
+  }
+  function birthdayInputValue(raw){
+    var p = parseBirthday(raw);
+    return (p && p.iso) ? p.iso : '';
+  }
 
   // ---------- persistence: localStorage for the API URL only ----------
   function loadApiUrl(){
@@ -416,8 +448,8 @@
     },
     ping: function(){ return this.call('ping'); },
     getData: function(){ return this.call('getData'); },
-    addPerson: function(name, link){ return this.call('addPerson', { name: name, link: link || '' }); },
-    updatePerson: function(id, link){ return this.call('updatePerson', { id: id, link: link || '' }); },
+    addPerson: function(name, link, birthday){ return this.call('addPerson', { name: name, link: link || '', birthday: birthday || '' }); },
+    updatePerson: function(id, link, birthday){ return this.call('updatePerson', { id: id, link: link || '', birthday: birthday || '' }); },
     deletePerson: function(id){ return this.call('deletePerson', { id: id }); },
     saveRound: function(month, pairs, participantIds){
       return this.call('saveRound', { month: month, pairs: JSON.stringify(pairs), participantIds: JSON.stringify(participantIds) });
@@ -688,20 +720,28 @@
       main.appendChild(h('div', { class:'roster-name', text: p.name }));
       if (state.editingId === p.id){
         var linkInput = h('input', { type:'url' }); linkInput.value = p.wishlistLink || '';
+        var birthdayInput = h('input', { type:'date' }); birthdayInput.value = birthdayInputValue(p.birthday);
         main.appendChild(h('div', { class:'edit-row' }, [
           linkInput,
           h('button', { class:'ghost small', onclick: function(){
             var val = linkInput.value.trim();
-            API.updatePerson(p.id, val).then(function(res){
+            var bday = birthdayInput.value; // '' clears it, a date sets it
+            API.updatePerson(p.id, val, bday).then(function(res){
               if (!res || res.ok === false) throw new Error('save failed');
-              p.wishlistLink = val; state.editingId = null; renderRoster(); renderMonthTab(); toast('Saved.');
+              p.wishlistLink = val; p.birthday = bday; state.editingId = null; renderRoster(); renderMonthTab(); toast('Saved.');
             }).catch(function(){ toast('Could not save.'); });
           } }, [document.createTextNode('Save')]),
+        ]));
+        main.appendChild(h('div', { class:'edit-row', style:'margin-top:4px;' }, [
+          h('label', { class:'field-label', style:'align-self:center; flex:0 0 auto;', text:'Birthday' }),
+          birthdayInput,
         ]));
       } else {
         main.appendChild(p.wishlistLink
           ? h('a', { class:'roster-link', href:p.wishlistLink, target:'_blank', rel:'noopener', text:p.wishlistLink })
           : h('span', { class:'roster-link empty-link', text:'No wishlist link yet' }));
+        var bLabel = birthdayLabel(p.birthday);
+        if (bLabel) main.appendChild(h('div', { class:'roster-birthday', text:'Birthday: ' + bLabel }));
       }
       row.appendChild(main);
 
@@ -735,15 +775,16 @@
   els.addPersonBtn.addEventListener('click', function(){
     var name = els.newName.value.trim();
     var link = els.newLink.value.trim();
+    var birthday = els.newBirthday.value;
     if (!name){ toast('Enter a name first.'); return; }
-    API.addPerson(name, link).then(function(res){
+    API.addPerson(name, link, birthday).then(function(res){
       if (!res || res.ok === false) throw new Error((res && res.error) || 'add failed');
       var id = res.id;
       var existing = rosterById(id);
-      if (existing){ existing.wishlistLink = link; toast('Updated ' + name + '.'); }
-      else { state.roster.push({ id:id, name:name, wishlistLink:link }); state.roster.sort(function(a,b){ return a.name.localeCompare(b.name); }); toast('Added ' + name + '.'); }
+      if (existing){ existing.wishlistLink = link; if (birthday) existing.birthday = birthday; toast('Updated ' + name + '.'); }
+      else { state.roster.push({ id:id, name:name, wishlistLink:link, birthday:birthday }); state.roster.sort(function(a,b){ return a.name.localeCompare(b.name); }); toast('Added ' + name + '.'); }
       state.selected.add(id);
-      els.newName.value = ''; els.newLink.value = '';
+      els.newName.value = ''; els.newLink.value = ''; els.newBirthday.value = '';
       renderRoster(); renderMonthTab();
     }).catch(function(){ toast('Could not add — try again.'); });
   });

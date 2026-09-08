@@ -50,8 +50,15 @@
   }
   .app{ max-width:420px; margin:0 auto; padding:40px 20px 60px; display:flex; flex-direction:column; min-height:100vh; }
 
-  .topbar{ display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:28px; }
+  .topbar{ display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:20px; }
   .mark{ width:32px; height:32px; color:var(--primary); flex:0 0 auto; }
+
+  .tabs{ display:flex; gap:4px; background:rgba(34,28,66,0.82); padding:4px; border-radius:999px; margin-bottom:20px; position:sticky; top:0; z-index:10; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .tab{ flex:1; border:none; background:transparent; padding:9px 4px; border-radius:999px; font-family:var(--font-body); font-weight:600; font-size:0.86rem; color:var(--ink-soft); cursor:pointer; transition:background .15s ease,color .15s ease; }
+  .tab.active{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
+  main{ display:flex; flex-direction:column; }
+  .panel{ display:none; flex-direction:column; gap:16px; }
+  .panel.active{ display:flex; }
   .brand h1{ font-family:var(--font-display); font-size:1.5rem; font-weight:700; margin:0; letter-spacing:-0.01em; }
 
   .card{ background:rgba(23,19,49,0.76); border:1px solid var(--border); border-radius:var(--radius-card); padding:22px 20px; box-shadow:var(--shadow); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
@@ -61,7 +68,13 @@
   .field-row{ display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
   label.field-label{ font-size:0.72rem; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em; font-family:var(--font-mono); }
   .field-hint{ font-size:0.76rem; color:var(--ink-soft); margin:2px 0 0; line-height:1.45; }
-  input[type=text]{ font-family:var(--font-body); font-size:1rem; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--paper); color:var(--ink); width:100%; }
+  input[type=text], select{ font-family:var(--font-body); font-size:1rem; padding:12px 14px; border-radius:10px; border:1px solid var(--border); background:var(--paper); color:var(--ink); width:100%; }
+
+  .suggestions{ position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); max-height:220px; overflow-y:auto; z-index:20; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .suggestion-item{ display:block; width:100%; text-align:left; background:none; border:none; padding:11px 14px; font-family:var(--font-body); font-size:0.94rem; color:var(--ink); cursor:pointer; border-bottom:1px solid var(--border); }
+  .suggestion-item:last-child{ border-bottom:none; }
+  .suggestion-item:hover, .suggestion-item.active{ background:var(--primary-tint); }
+  .suggestion-empty{ padding:11px 14px; font-size:0.86rem; color:var(--ink-soft); }
   input:focus-visible, button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   button.primary{ background:var(--primary); color:#fff; border:none; padding:14px 18px; border-radius:12px; font-family:var(--font-body); font-weight:700; font-size:1rem; cursor:pointer; box-shadow:var(--shadow); width:100%; margin-top:4px; }
@@ -80,6 +93,15 @@
 
   .footer-note{ text-align:center; font-size:0.74rem; color:var(--ink-soft); margin-top:22px; }
 
+  .bday-list{ display:flex; flex-direction:column; gap:10px; }
+  .bday-row{ display:flex; flex-direction:column; gap:4px; padding:12px 14px; background:var(--surface-2); border-radius:12px; }
+  .bday-day{ font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-soft); text-transform:uppercase; letter-spacing:0.05em; }
+  .bday-name{ font-family:var(--font-display); font-size:1.05rem; font-weight:600; }
+  .bday-link{ display:block; font-family:var(--font-mono); font-size:0.72rem; color:var(--primary-deep); text-decoration:none; word-break:break-all; background:var(--primary-tint); padding:8px 10px; border-radius:8px; margin-top:2px; }
+  .bday-nolink{ font-size:0.78rem; color:var(--ink-soft); margin-top:2px; }
+  .bday-actions{ margin-top:6px; }
+  .ghost.small{ padding:8px 12px; font-size:0.78rem; width:auto; }
+
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
@@ -95,28 +117,69 @@
     <div class="brand"><h1>Book Buddies</h1></div>
   </header>
 
-  <div class="card">
-    <p class="lede">Find your book buddy</p>
-    <p class="sub">Enter your Instagram username to see who you're sending a book to this month.</p>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="buddy" role="tab" aria-selected="true">Buddy</button>
+    <button class="tab" data-tab="birthdays" role="tab" aria-selected="false">Birthdays</button>
+  </nav>
 
-    <div class="field-row">
-      <label class="field-label" for="username">Instagram username</label>
-      <input type="text" id="username" placeholder="yourusername" autocomplete="username">
-    </div>
+  <main>
+    <section id="tab-buddy" class="panel active">
+      <div class="card">
+        <p class="lede">Find your book buddy</p>
+        <p class="sub">Enter your Instagram username to see who you're sending a book to this month.</p>
 
-    <button class="primary" id="reveal-btn">Reveal my buddy</button>
-    <p class="error-note" id="error-note" hidden></p>
+        <div class="field-row">
+          <label class="field-label" for="username">Instagram username</label>
+          <input type="text" id="username" placeholder="yourusername" autocomplete="username">
+        </div>
 
-    <div class="result" id="result">
-      <p class="result-eyebrow" id="result-month"></p>
-      <p class="result-name" id="result-name"></p>
-      <p class="result-sub">Send them a book from their wishlist:</p>
-      <a class="result-link" id="result-link" target="_blank" rel="noopener"></a>
-      <button class="ghost" id="copy-btn">Copy wishlist link</button>
-    </div>
-  </div>
+        <button class="primary" id="reveal-btn">Reveal my buddy</button>
+        <p class="error-note" id="error-note" hidden></p>
 
-  <p class="footer-note">Trouble finding your match? Ask whoever's running Book Buddies this month.</p>
+        <div class="result" id="result">
+          <p class="result-eyebrow" id="result-month"></p>
+          <p class="result-name" id="result-name"></p>
+          <p class="result-sub">Send them a book from their wishlist:</p>
+          <a class="result-link" id="result-link" target="_blank" rel="noopener"></a>
+          <button class="ghost" id="copy-btn">Copy wishlist link</button>
+        </div>
+      </div>
+
+      <div class="card" id="bday-after-card" hidden>
+        <p class="lede" id="bday-after-title">This month's birthdays</p>
+        <p class="sub" id="bday-after-sub"></p>
+        <div class="bday-list" id="bday-after-list"></div>
+      </div>
+
+      <div class="card" id="browse-card">
+        <p class="lede">Send someone a book</p>
+        <p class="sub">Going through something? Pick their name below to grab their wishlist link — no need to wait for a monthly match.</p>
+
+        <div class="field-row" style="position:relative;">
+          <label class="field-label" for="browse-input">Start typing a name</label>
+          <input type="text" id="browse-input" placeholder="Loading roster…" autocomplete="off" disabled>
+          <div class="suggestions" id="browse-suggestions" hidden></div>
+        </div>
+        <p class="error-note" id="browse-error" hidden></p>
+
+        <div class="result" id="browse-result">
+          <a class="result-link" id="browse-link" target="_blank" rel="noopener"></a>
+          <p class="sub" id="browse-empty" style="margin:0 0 12px;" hidden>No wishlist link on file yet for them — ask whoever's running Book Buddies, or reach out directly.</p>
+          <button class="ghost" id="browse-copy-btn">Copy wishlist link</button>
+        </div>
+      </div>
+
+      <p class="footer-note">Trouble finding your match? Ask whoever's running Book Buddies this month.</p>
+    </section>
+
+    <section id="tab-birthdays" class="panel">
+      <div class="card">
+        <p class="lede" id="bday-tab-title">This month's birthdays</p>
+        <p class="sub" id="bday-tab-sub">Loading…</p>
+        <div class="bday-list" id="bday-tab-list"></div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script>
@@ -135,6 +198,18 @@
     resultName: document.getElementById('result-name'),
     resultLink: document.getElementById('result-link'),
     copyBtn: document.getElementById('copy-btn'),
+    browseInput: document.getElementById('browse-input'),
+    browseSuggestions: document.getElementById('browse-suggestions'),
+    browseError: document.getElementById('browse-error'),
+    browseResult: document.getElementById('browse-result'),
+    browseLink: document.getElementById('browse-link'),
+    browseEmpty: document.getElementById('browse-empty'),
+    browseCopyBtn: document.getElementById('browse-copy-btn'),
+    bdayAfterCard: document.getElementById('bday-after-card'),
+    bdayAfterSub: document.getElementById('bday-after-sub'),
+    bdayAfterList: document.getElementById('bday-after-list'),
+    bdayTabSub: document.getElementById('bday-tab-sub'),
+    bdayTabList: document.getElementById('bday-tab-list'),
   };
 
   function monthLabel(m){
@@ -183,6 +258,7 @@
       els.copyBtn.style.display = 'none';
     }
     els.result.classList.add('show');
+    revealBirthdaysAfterCard();
   }
 
   function reveal(){
@@ -220,6 +296,233 @@
 
   els.revealBtn.addEventListener('click', reveal);
   els.username.addEventListener('keydown', function(e){ if (e.key === 'Enter') reveal(); });
+
+  // ---------- "Send someone a book" roster browser ----------
+  var rosterList = [];   // everyone, loaded once: [{id, name, wishlistLink}]
+  var currentMatches = []; // whatever's currently showing in the suggestion list
+  var activeIndex = -1;    // keyboard-highlighted suggestion, -1 = none
+
+  function showBrowseError(msg){
+    els.browseResult.classList.remove('show');
+    els.browseError.hidden = false;
+    els.browseError.textContent = msg;
+  }
+
+  function showBrowseResult(person){
+    els.browseError.hidden = true;
+    if (person.wishlistLink){
+      els.browseLink.href = person.wishlistLink;
+      els.browseLink.textContent = person.wishlistLink;
+      els.browseLink.style.display = '';
+      els.browseEmpty.hidden = true;
+      els.browseCopyBtn.style.display = '';
+      els.browseCopyBtn.onclick = function(){
+        copyText(person.wishlistLink);
+        els.browseCopyBtn.textContent = 'Copied!';
+        setTimeout(function(){ els.browseCopyBtn.textContent = 'Copy wishlist link'; }, 1800);
+      };
+    } else {
+      els.browseLink.style.display = 'none';
+      els.browseCopyBtn.style.display = 'none';
+      els.browseEmpty.hidden = false;
+    }
+    els.browseResult.classList.add('show');
+  }
+
+  function hideSuggestions(){
+    els.browseSuggestions.hidden = true;
+    els.browseSuggestions.innerHTML = '';
+    currentMatches = [];
+    activeIndex = -1;
+  }
+
+  function highlightActive(){
+    var items = els.browseSuggestions.querySelectorAll('.suggestion-item');
+    items.forEach(function(it, i){ it.classList.toggle('active', i === activeIndex); });
+  }
+
+  function selectPerson(p){
+    els.browseInput.value = p.name;
+    hideSuggestions();
+    showBrowseResult(p);
+  }
+
+  function renderSuggestions(matches){
+    currentMatches = matches;
+    activeIndex = -1;
+    els.browseSuggestions.innerHTML = '';
+    if (!matches.length){
+      var empty = document.createElement('div');
+      empty.className = 'suggestion-empty';
+      empty.textContent = 'No one matches that.';
+      els.browseSuggestions.appendChild(empty);
+      els.browseSuggestions.hidden = false;
+      return;
+    }
+    matches.slice(0, 8).forEach(function(p){
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'suggestion-item';
+      item.textContent = p.name;
+      // mousedown (not click) so this fires before the input's blur hides the list
+      item.addEventListener('mousedown', function(e){ e.preventDefault(); selectPerson(p); });
+      els.browseSuggestions.appendChild(item);
+    });
+    els.browseSuggestions.hidden = false;
+  }
+
+  function loadRoster(){
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.browseInput.placeholder = 'Not set up yet';
+      return;
+    }
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getRoster';
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
+      rosterList = (data.roster || []).slice().sort(function(a,b){ return a.name.localeCompare(b.name); });
+      els.browseInput.placeholder = 'e.g. steph';
+      els.browseInput.disabled = false;
+    }).catch(function(){
+      els.browseInput.placeholder = 'Could not load roster';
+      showBrowseError('Could not reach the server — try refreshing the page.');
+    });
+  }
+
+  els.browseInput.addEventListener('input', function(){
+    els.browseResult.classList.remove('show');
+    els.browseError.hidden = true;
+    var q = els.browseInput.value.trim().toLowerCase();
+    if (!q){ hideSuggestions(); return; }
+    var matches = rosterList.filter(function(p){ return p.name.toLowerCase().indexOf(q) >= 0; });
+    // names starting with what was typed float to the top, then alphabetical
+    matches.sort(function(a,b){
+      var aStarts = a.name.toLowerCase().indexOf(q) === 0 ? 0 : 1;
+      var bStarts = b.name.toLowerCase().indexOf(q) === 0 ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.name.localeCompare(b.name);
+    });
+    renderSuggestions(matches);
+  });
+
+  els.browseInput.addEventListener('focus', function(){
+    if (els.browseInput.value.trim() && rosterList.length) els.browseInput.dispatchEvent(new Event('input'));
+  });
+
+  els.browseInput.addEventListener('keydown', function(e){
+    if (els.browseSuggestions.hidden || !currentMatches.length) return;
+    var shown = Math.min(currentMatches.length, 8);
+    if (e.key === 'ArrowDown'){
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, shown - 1);
+      highlightActive();
+    } else if (e.key === 'ArrowUp'){
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      highlightActive();
+    } else if (e.key === 'Enter'){
+      e.preventDefault();
+      if (activeIndex >= 0 && currentMatches[activeIndex]) selectPerson(currentMatches[activeIndex]);
+      else if (currentMatches.length === 1) selectPerson(currentMatches[0]);
+    } else if (e.key === 'Escape'){
+      hideSuggestions();
+    }
+  });
+
+  els.browseInput.addEventListener('blur', function(){
+    setTimeout(hideSuggestions, 150); // delay so a suggestion's mousedown still registers first
+  });
+
+  // ---------- Birthdays ----------
+  var birthdaysData = null; // { month, monthName, people: [{id,name,wishlistLink,day}] } once loaded
+
+  function birthdayRow(p, monthName){
+    var row = document.createElement('div');
+    row.className = 'bday-row';
+    var dayEl = document.createElement('div');
+    dayEl.className = 'bday-day';
+    dayEl.textContent = monthName + ' ' + p.day;
+    var nameEl = document.createElement('div');
+    nameEl.className = 'bday-name';
+    nameEl.textContent = p.name;
+    row.appendChild(dayEl);
+    row.appendChild(nameEl);
+    if (p.wishlistLink){
+      var link = document.createElement('a');
+      link.className = 'bday-link'; link.href = p.wishlistLink; link.target = '_blank'; link.rel = 'noopener';
+      link.textContent = p.wishlistLink;
+      row.appendChild(link);
+      var actions = document.createElement('div');
+      actions.className = 'bday-actions';
+      var btn = document.createElement('button');
+      btn.className = 'ghost small'; btn.type = 'button'; btn.textContent = 'Copy wishlist link';
+      btn.addEventListener('click', function(){
+        copyText(p.wishlistLink);
+        btn.textContent = 'Copied!';
+        setTimeout(function(){ btn.textContent = 'Copy wishlist link'; }, 1800);
+      });
+      actions.appendChild(btn);
+      row.appendChild(actions);
+    } else {
+      var nolink = document.createElement('p');
+      nolink.className = 'bday-nolink';
+      nolink.textContent = 'No wishlist link on file yet.';
+      row.appendChild(nolink);
+    }
+    return row;
+  }
+
+  function renderBirthdaysInto(listEl, subEl, data){
+    listEl.innerHTML = '';
+    if (!data || !data.people || !data.people.length){
+      subEl.textContent = 'No birthdays on file for ' + (data ? data.monthName : 'this month') + '.';
+      return;
+    }
+    subEl.textContent = data.people.length + (data.people.length === 1 ? ' birthday' : ' birthdays') + ' in ' + data.monthName + ' — send them something from their wishlist.';
+    data.people.forEach(function(p){ listEl.appendChild(birthdayRow(p, data.monthName)); });
+  }
+
+  function revealBirthdaysAfterCard(){
+    if (!birthdaysData){
+      els.bdayAfterCard.hidden = true;
+      return;
+    }
+    renderBirthdaysInto(els.bdayAfterList, els.bdayAfterSub, birthdaysData);
+    els.bdayAfterCard.hidden = false;
+  }
+
+  function loadBirthdays(){
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.bdayTabSub.textContent = 'This app isn’t connected yet — ask whoever set it up to finish configuring it.';
+      return;
+    }
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getBirthdays';
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
+      birthdaysData = data;
+      renderBirthdaysInto(els.bdayTabList, els.bdayTabSub, data);
+    }).catch(function(){
+      els.bdayTabSub.textContent = 'Could not reach the server — try refreshing the page.';
+    });
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll('.tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  loadRoster();
+  loadBirthdays();
 })();
 </script>
 </body>
