@@ -102,6 +102,18 @@
   .bday-actions{ margin-top:6px; }
   .ghost.small{ padding:8px 12px; font-size:0.78rem; width:auto; }
 
+  .proj-list{ display:flex; flex-direction:column; gap:12px; }
+  .proj-card{ padding:14px; background:var(--surface-2); border-radius:12px; display:flex; flex-direction:column; gap:8px; }
+  .proj-needed{ font-family:var(--font-display); font-size:1.05rem; font-weight:600; margin:0; }
+  .proj-meta{ font-size:0.76rem; color:var(--accent-soft); font-family:var(--font-mono); margin:0; }
+  .proj-meta.overdue{ color:var(--danger); }
+  .proj-participants{ display:flex; flex-wrap:wrap; gap:6px; }
+  .proj-chip{ font-size:0.72rem; font-family:var(--font-mono); background:var(--primary-tint); color:var(--primary-deep); padding:4px 9px; border-radius:999px; }
+  .proj-empty-note{ font-size:0.78rem; color:var(--ink-soft); }
+  .proj-join-row{ display:flex; gap:8px; margin-top:2px; }
+  .proj-join-row[hidden]{ display:none; }
+  .proj-join-row input{ flex:1; }
+
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
@@ -120,6 +132,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="buddy" role="tab" aria-selected="true">Buddy</button>
     <button class="tab" data-tab="birthdays" role="tab" aria-selected="false">Birthdays</button>
+    <button class="tab" data-tab="collabs" role="tab" aria-selected="false">Collabs</button>
   </nav>
 
   <main>
@@ -179,6 +192,34 @@
         <div class="bday-list" id="bday-tab-list"></div>
       </div>
     </section>
+
+    <section id="tab-collabs" class="panel">
+      <div class="card">
+        <p class="lede">Start a collab</p>
+        <p class="sub">Working on something with more than one person — a joint post, a themed shelfie, a group photo? Post it here and let people join in.</p>
+
+        <div class="field-row">
+          <label class="field-label" for="proj-creator">Your name</label>
+          <input type="text" id="proj-creator" placeholder="yourusername">
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="proj-needed">What's needed</label>
+          <input type="text" id="proj-needed" placeholder="e.g. 5 people to post the same day">
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="proj-due">Due date (optional)</label>
+          <input type="date" id="proj-due">
+        </div>
+        <button class="primary" id="proj-add-btn">Post it</button>
+        <p class="error-note" id="proj-add-error" hidden></p>
+      </div>
+
+      <div class="card">
+        <p class="lede">Open collabs</p>
+        <p class="sub" id="proj-list-sub">Loading…</p>
+        <div class="proj-list" id="proj-list"></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -210,6 +251,13 @@
     bdayAfterList: document.getElementById('bday-after-list'),
     bdayTabSub: document.getElementById('bday-tab-sub'),
     bdayTabList: document.getElementById('bday-tab-list'),
+    projCreator: document.getElementById('proj-creator'),
+    projNeeded: document.getElementById('proj-needed'),
+    projDue: document.getElementById('proj-due'),
+    projAddBtn: document.getElementById('proj-add-btn'),
+    projAddError: document.getElementById('proj-add-error'),
+    projListSub: document.getElementById('proj-list-sub'),
+    projList: document.getElementById('proj-list'),
   };
 
   function monthLabel(m){
@@ -521,8 +569,171 @@
     });
   });
 
+  // ---------- Collabs ----------
+  var projectsCache = [];
+  var MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function formatDueDate(s){
+    if (!s) return '';
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return s;
+    return MONTH_ABBR[parseInt(m[2],10)-1] + ' ' + parseInt(m[3],10);
+  }
+  function isOverdue(s){
+    if (!s) return false;
+    var m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return false;
+    var due = new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+    var today = new Date(); today.setHours(0,0,0,0);
+    return due < today;
+  }
+
+  function projectCard(proj){
+    var card = document.createElement('div');
+    card.className = 'proj-card';
+
+    var needed = document.createElement('p');
+    needed.className = 'proj-needed';
+    needed.textContent = proj.whatsNeeded;
+    card.appendChild(needed);
+
+    var overdue = isOverdue(proj.dueDate);
+    var meta = document.createElement('p');
+    meta.className = 'proj-meta' + (overdue ? ' overdue' : '');
+    var metaText = 'Started by ' + proj.creator;
+    if (proj.dueDate) metaText += ' · Due ' + formatDueDate(proj.dueDate) + (overdue ? ' (past due)' : '');
+    meta.textContent = metaText;
+    card.appendChild(meta);
+
+    var participants = document.createElement('div');
+    participants.className = 'proj-participants';
+    if (proj.participants && proj.participants.length){
+      proj.participants.forEach(function(name){
+        var chip = document.createElement('span');
+        chip.className = 'proj-chip';
+        chip.textContent = name;
+        participants.appendChild(chip);
+      });
+    } else {
+      var empty = document.createElement('span');
+      empty.className = 'proj-empty-note';
+      empty.textContent = 'No one has joined yet.';
+      participants.appendChild(empty);
+    }
+    card.appendChild(participants);
+
+    var joinBtn = document.createElement('button');
+    joinBtn.className = 'ghost small'; joinBtn.type = 'button'; joinBtn.textContent = 'Join';
+
+    var joinRow = document.createElement('div');
+    joinRow.className = 'proj-join-row'; joinRow.hidden = true;
+    var joinInput = document.createElement('input');
+    joinInput.type = 'text'; joinInput.placeholder = 'Your username';
+    var confirmBtn = document.createElement('button');
+    confirmBtn.className = 'ghost small'; confirmBtn.type = 'button'; confirmBtn.textContent = 'Confirm';
+    joinRow.appendChild(joinInput); joinRow.appendChild(confirmBtn);
+
+    joinBtn.addEventListener('click', function(){
+      joinRow.hidden = !joinRow.hidden;
+      if (!joinRow.hidden) joinInput.focus();
+    });
+
+    function submitJoin(){
+      var username = joinInput.value.trim();
+      if (!username){ joinInput.focus(); return; }
+      confirmBtn.disabled = true;
+      var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
+        'action=joinProject&projectId=' + encodeURIComponent(proj.id) + '&username=' + encodeURIComponent(username);
+      fetch(url).then(function(res){
+        if (!res.ok) throw { code: 'network' };
+        return res.json();
+      }).then(function(data){
+        confirmBtn.disabled = false;
+        if (!data || data.ok === false){ joinInput.placeholder = 'Could not join — try again'; return; }
+        proj.participants = data.participants || proj.participants;
+        joinInput.value = ''; joinRow.hidden = true;
+        renderProjects();
+      }).catch(function(){
+        confirmBtn.disabled = false;
+        joinInput.placeholder = 'Could not reach the server';
+      });
+    }
+    confirmBtn.addEventListener('click', submitJoin);
+    joinInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') submitJoin(); });
+
+    card.appendChild(joinBtn);
+    card.appendChild(joinRow);
+    return card;
+  }
+
+  function renderProjects(){
+    els.projList.innerHTML = '';
+    if (!projectsCache.length){
+      els.projListSub.textContent = 'No collabs posted yet — be the first!';
+      return;
+    }
+    els.projListSub.textContent = projectsCache.length + (projectsCache.length === 1 ? ' open collab.' : ' open collabs.');
+    projectsCache.forEach(function(proj){ els.projList.appendChild(projectCard(proj)); });
+  }
+
+  function loadProjects(){
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.projListSub.textContent = 'This app isn’t connected yet.';
+      return;
+    }
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getProjects';
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
+      projectsCache = data.projects || [];
+      renderProjects();
+    }).catch(function(){
+      els.projListSub.textContent = 'Could not reach the server — try refreshing the page.';
+    });
+  }
+
+  els.projAddBtn.addEventListener('click', function(){
+    var creator = els.projCreator.value.trim();
+    var needed = els.projNeeded.value.trim();
+    var due = els.projDue.value;
+    els.projAddError.hidden = true;
+    if (!creator || !needed){
+      els.projAddError.hidden = false;
+      els.projAddError.textContent = 'Fill in your name and what you need at least.';
+      return;
+    }
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.projAddError.hidden = false;
+      els.projAddError.textContent = 'This app isn’t connected yet — ask whoever set it up to finish configuring it.';
+      return;
+    }
+    els.projAddBtn.disabled = true;
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
+      'action=addProject&creator=' + encodeURIComponent(creator) + '&whatsNeeded=' + encodeURIComponent(needed) + '&dueDate=' + encodeURIComponent(due);
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      els.projAddBtn.disabled = false;
+      if (!data || data.ok === false){
+        els.projAddError.hidden = false;
+        els.projAddError.textContent = (data && data.error) || 'Could not post — try again.';
+        return;
+      }
+      els.projCreator.value = ''; els.projNeeded.value = ''; els.projDue.value = '';
+      loadProjects();
+    }).catch(function(){
+      els.projAddBtn.disabled = false;
+      els.projAddError.hidden = false;
+      els.projAddError.textContent = 'Could not reach the server — try again.';
+    });
+  });
+
   loadRoster();
   loadBirthdays();
+  loadProjects();
 })();
 </script>
 </body>
