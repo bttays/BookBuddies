@@ -187,7 +187,11 @@
 
     <section id="tab-birthdays" class="panel">
       <div class="card">
-        <p class="lede" id="bday-tab-title">This month's birthdays</p>
+        <p class="lede" id="bday-tab-title">Birthdays</p>
+        <div class="field-row">
+          <label class="field-label" for="bday-month-select">Show birthdays for</label>
+          <select id="bday-month-select"></select>
+        </div>
         <p class="sub" id="bday-tab-sub">Loading…</p>
         <div class="bday-list" id="bday-tab-list"></div>
       </div>
@@ -251,6 +255,7 @@
     bdayAfterList: document.getElementById('bday-after-list'),
     bdayTabSub: document.getElementById('bday-tab-sub'),
     bdayTabList: document.getElementById('bday-tab-list'),
+    bdayMonthSelect: document.getElementById('bday-month-select'),
     projCreator: document.getElementById('proj-creator'),
     projNeeded: document.getElementById('proj-needed'),
     projDue: document.getElementById('proj-due'),
@@ -484,7 +489,9 @@
   });
 
   // ---------- Birthdays ----------
-  var birthdaysData = null; // { month, monthName, people: [{id,name,wishlistLink,day}] } once loaded
+  var MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var currentMonthBirthdays = null; // real current-month data — always what the after-reveal card shows
+  var bdayLoadToken = 0; // guards against an older dropdown request clobbering a newer one
 
   function birthdayRow(p, monthName){
     var row = document.createElement('div');
@@ -533,12 +540,50 @@
   }
 
   function revealBirthdaysAfterCard(){
-    if (!birthdaysData){
+    if (!currentMonthBirthdays){
       els.bdayAfterCard.hidden = true;
       return;
     }
-    renderBirthdaysInto(els.bdayAfterList, els.bdayAfterSub, birthdaysData);
+    renderBirthdaysInto(els.bdayAfterList, els.bdayAfterSub, currentMonthBirthdays);
     els.bdayAfterCard.hidden = false;
+  }
+
+  function populateMonthSelect(selectedMonth){
+    els.bdayMonthSelect.innerHTML = '';
+    MONTH_NAMES.forEach(function(name, i){
+      var opt = document.createElement('option');
+      opt.value = String(i + 1);
+      opt.textContent = name;
+      if (i + 1 === selectedMonth) opt.selected = true;
+      els.bdayMonthSelect.appendChild(opt);
+    });
+  }
+
+  function fetchBirthdays(month){
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getBirthdays';
+    if (month) url += '&month=' + encodeURIComponent(month);
+    return fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
+      return data;
+    });
+  }
+
+  // Re-fetches just the Birthdays tab's list for whatever month is picked in
+  // the dropdown — the after-reveal card on the Buddy tab is untouched by
+  // this and always keeps showing the real current month.
+  function loadBirthdaysForMonth(month){
+    var token = ++bdayLoadToken;
+    els.bdayTabSub.textContent = 'Loading…';
+    fetchBirthdays(month).then(function(data){
+      if (token !== bdayLoadToken) return; // a newer selection has since started loading
+      renderBirthdaysInto(els.bdayTabList, els.bdayTabSub, data);
+    }).catch(function(){
+      if (token !== bdayLoadToken) return;
+      els.bdayTabSub.textContent = 'Could not reach the server — try refreshing the page.';
+    });
   }
 
   function loadBirthdays(){
@@ -546,18 +591,18 @@
       els.bdayTabSub.textContent = 'This app isn’t connected yet — ask whoever set it up to finish configuring it.';
       return;
     }
-    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getBirthdays';
-    fetch(url).then(function(res){
-      if (!res.ok) throw { code: 'network' };
-      return res.json();
-    }).then(function(data){
-      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
-      birthdaysData = data;
+    fetchBirthdays().then(function(data){
+      currentMonthBirthdays = data;
+      populateMonthSelect(data.month);
       renderBirthdaysInto(els.bdayTabList, els.bdayTabSub, data);
     }).catch(function(){
       els.bdayTabSub.textContent = 'Could not reach the server — try refreshing the page.';
     });
   }
+
+  els.bdayMonthSelect.addEventListener('change', function(){
+    loadBirthdaysForMonth(els.bdayMonthSelect.value);
+  });
 
   // ---------- tabs ----------
   document.querySelectorAll('.tab').forEach(function(btn){
