@@ -144,6 +144,11 @@
   .access-check.no{ background:var(--surface-2); color:var(--ink-soft); }
   .access-name{ flex:1; font-size:0.92rem; }
   .access-time{ font-size:0.7rem; color:var(--ink-soft); font-family:var(--font-mono); }
+
+  /* ===== Update banner ===== */
+  .update-bar{ position:fixed; left:16px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); z-index:1000; max-width:520px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:var(--surface-2); color:var(--ink); border:1px solid var(--accent); border-radius:var(--radius-card); box-shadow:var(--shadow); font-family:var(--font-body); font-size:0.9rem; line-height:1.35; }
+  .update-bar[hidden]{ display:none; }
+  .update-bar button{ flex:none; width:auto; margin:0; padding:9px 16px; border:0; border-radius:var(--radius-pill); background:var(--accent); color:#0C0920; font-family:var(--font-body); font-weight:700; font-size:0.85rem; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -297,7 +302,7 @@
 (function(){
   "use strict";
 
-  var CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbylNEF1u7vh_MVXTB8BC8FA6s9bXFYk8k3clmxyXoTbZ_1BQqcaTk-PDsFC7hMoHz5n/exec" }; // optionally hardcode a deployed Apps Script URL here
+  var CONFIG = { API_URL: "" }; // optionally hardcode a deployed Apps Script URL here
 
   var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "" };
 
@@ -918,6 +923,44 @@
     setStatus(false, 'Not set up yet');
     document.querySelector('.tab[data-tab="setup"]').click();
   }
+})();
+</script>
+<!-- ===== Update checker =====
+     Every time you upload a changed copy of this page, bump APP_VERSION below (1 -> 2 -> 3 ...).
+     Anyone with an older copy open will see a "new version" banner with a Refresh button. -->
+<div id="updateBar" class="update-bar" role="status" hidden>
+  <span>A new version of Book Buddies is ready.</span>
+  <button type="button" id="updateBtn">Refresh</button>
+</div>
+<script>
+var APP_VERSION = "1";
+(function(){
+  var bar = document.getElementById('updateBar');
+  var btn = document.getElementById('updateBtn');
+  var newVersion = null, checking = false;
+  function pageUrl(){ return location.href.split('#')[0].split('?')[0]; }
+  function check(){
+    if (checking || newVersion || !window.fetch) return;
+    checking = true;
+    fetch(pageUrl() + '?check=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.text() : ''; })
+      .then(function(html){
+        var m = html.match(/var APP_VERSION = "([^"]+)"/);
+        if (m && m[1] !== APP_VERSION){ newVersion = m[1]; bar.hidden = false; }
+      })
+      .catch(function(){})
+      .then(function(){ checking = false; });
+  }
+  btn.addEventListener('click', function(){
+    btn.disabled = true; btn.textContent = 'Updating…';
+    // Refresh the phone's saved copy of the normal link, then load the new version.
+    fetch(pageUrl(), { cache: 'reload' }).catch(function(){}).then(function(){
+      location.replace(pageUrl() + '?v=' + encodeURIComponent(newVersion) + location.hash);
+    });
+  });
+  check();
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
+  setInterval(check, 30 * 60 * 1000);
 })();
 </script>
 </body>
