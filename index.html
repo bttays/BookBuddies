@@ -114,6 +114,20 @@
   .proj-join-row[hidden]{ display:none; }
   .proj-join-row input{ flex:1; }
 
+  .read-list{ display:flex; flex-direction:column; gap:10px; }
+  .read-row{ display:flex; flex-direction:column; gap:4px; padding:12px 14px; background:var(--surface-2); border-radius:12px; }
+  .read-row-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .read-month{ font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-soft); text-transform:uppercase; letter-spacing:0.05em; }
+  .read-title{ font-family:var(--font-display); font-size:1.05rem; font-weight:600; }
+  .read-link{ display:block; font-family:var(--font-mono); font-size:0.72rem; color:var(--primary-deep); text-decoration:none; word-break:break-all; background:var(--primary-tint); padding:8px 10px; border-radius:8px; margin-top:2px; }
+  .read-nolink{ font-size:0.78rem; color:var(--ink-soft); margin-top:2px; }
+  .read-edit-row{ display:flex; flex-direction:column; gap:10px; margin-top:8px; padding-top:10px; border-top:1px solid var(--border); }
+  .read-edit-row[hidden]{ display:none; }
+  .read-edit-row .field-row{ margin-bottom:0; }
+  .read-edit-actions{ display:flex; gap:8px; }
+  .read-edit-actions button{ width:auto; }
+  button.primary.small{ padding:8px 12px; font-size:0.78rem; width:auto; margin-top:0; }
+
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
@@ -133,6 +147,7 @@
     <button class="tab active" data-tab="buddy" role="tab" aria-selected="true">Buddy</button>
     <button class="tab" data-tab="birthdays" role="tab" aria-selected="false">Birthdays</button>
     <button class="tab" data-tab="collabs" role="tab" aria-selected="false">Collabs</button>
+    <button class="tab" data-tab="group-reads" role="tab" aria-selected="false">Group Reads</button>
   </nav>
 
   <main>
@@ -224,6 +239,41 @@
         <div class="proj-list" id="proj-list"></div>
       </div>
     </section>
+
+    <section id="tab-group-reads" class="panel">
+      <div class="card">
+        <p class="lede">Add a group read</p>
+        <p class="sub">Planning to read something as a group? Add the book and the month, plus a link to the group chat if there is one.</p>
+
+        <div class="field-row">
+          <label class="field-label" for="read-title">Book title</label>
+          <input type="text" id="read-title" placeholder="e.g. The Ashen Series">
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="read-month">Month</label>
+          <input type="month" id="read-month">
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="read-link">Group chat link (optional)</label>
+          <input type="text" id="read-link" placeholder="https://…">
+        </div>
+        <button class="primary" id="read-add-btn">Add to the list</button>
+        <p class="error-note" id="read-add-error" hidden></p>
+      </div>
+
+      <div class="card">
+        <p class="lede">Group reads</p>
+        <div class="field-row">
+          <label class="field-label" for="read-view-select">Show</label>
+          <select id="read-view-select">
+            <option value="active">Active group reads</option>
+            <option value="past">Past group reads</option>
+          </select>
+        </div>
+        <p class="sub" id="read-list-sub">Loading…</p>
+        <div class="read-list" id="read-list"></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -263,6 +313,14 @@
     projAddError: document.getElementById('proj-add-error'),
     projListSub: document.getElementById('proj-list-sub'),
     projList: document.getElementById('proj-list'),
+    readTitle: document.getElementById('read-title'),
+    readMonth: document.getElementById('read-month'),
+    readLink: document.getElementById('read-link'),
+    readAddBtn: document.getElementById('read-add-btn'),
+    readAddError: document.getElementById('read-add-error'),
+    readListSub: document.getElementById('read-list-sub'),
+    readList: document.getElementById('read-list'),
+    readViewSelect: document.getElementById('read-view-select'),
   };
 
   function monthLabel(m){
@@ -776,9 +834,213 @@
     });
   });
 
+  // ---------- Group Reads ----------
+  var groupReadsCache = [];
+  var groupReadsCurrentMonthYear = ''; // 'yyyy-MM' per the server — splits active vs past
+
+  function readRow(r){
+    var row = document.createElement('div');
+    row.className = 'read-row';
+
+    var top = document.createElement('div');
+    top.className = 'read-row-top';
+    var monthEl = document.createElement('div');
+    monthEl.className = 'read-month';
+    monthEl.textContent = monthLabel(r.monthYear);
+    var editBtn = document.createElement('button');
+    editBtn.className = 'ghost small'; editBtn.type = 'button'; editBtn.textContent = 'Edit';
+    top.appendChild(monthEl);
+    top.appendChild(editBtn);
+    row.appendChild(top);
+
+    var titleEl = document.createElement('div');
+    titleEl.className = 'read-title';
+    titleEl.textContent = r.title;
+    row.appendChild(titleEl);
+
+    if (r.chatLink){
+      var link = document.createElement('a');
+      link.className = 'read-link'; link.href = r.chatLink; link.target = '_blank'; link.rel = 'noopener';
+      link.textContent = 'Open the group chat';
+      row.appendChild(link);
+    } else {
+      var nolink = document.createElement('p');
+      nolink.className = 'read-nolink';
+      nolink.textContent = 'No group chat link on file yet.';
+      row.appendChild(nolink);
+    }
+
+    // ---- inline edit form (hidden until "Edit" is tapped) ----
+    var editRow = document.createElement('div');
+    editRow.className = 'read-edit-row'; editRow.hidden = true;
+
+    var titleField = document.createElement('div');
+    titleField.className = 'field-row';
+    var titleLabel = document.createElement('label');
+    titleLabel.className = 'field-label'; titleLabel.textContent = 'Book title';
+    var titleInput = document.createElement('input');
+    titleInput.type = 'text'; titleInput.value = r.title;
+    titleField.appendChild(titleLabel); titleField.appendChild(titleInput);
+
+    var monthField = document.createElement('div');
+    monthField.className = 'field-row';
+    var monthFieldLabel = document.createElement('label');
+    monthFieldLabel.className = 'field-label'; monthFieldLabel.textContent = 'Month';
+    var monthInput = document.createElement('input');
+    monthInput.type = 'month'; monthInput.value = r.monthYear;
+    monthField.appendChild(monthFieldLabel); monthField.appendChild(monthInput);
+
+    var linkField = document.createElement('div');
+    linkField.className = 'field-row';
+    var linkFieldLabel = document.createElement('label');
+    linkFieldLabel.className = 'field-label'; linkFieldLabel.textContent = 'Group chat link';
+    var linkInput = document.createElement('input');
+    linkInput.type = 'text'; linkInput.value = r.chatLink || '';
+    linkField.appendChild(linkFieldLabel); linkField.appendChild(linkInput);
+
+    var editActions = document.createElement('div');
+    editActions.className = 'read-edit-actions';
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'primary small'; saveBtn.type = 'button'; saveBtn.textContent = 'Save';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'ghost small'; cancelBtn.type = 'button'; cancelBtn.textContent = 'Cancel';
+    editActions.appendChild(saveBtn); editActions.appendChild(cancelBtn);
+
+    var editError = document.createElement('p');
+    editError.className = 'error-note'; editError.hidden = true;
+
+    editRow.appendChild(titleField);
+    editRow.appendChild(monthField);
+    editRow.appendChild(linkField);
+    editRow.appendChild(editActions);
+    editRow.appendChild(editError);
+    row.appendChild(editRow);
+
+    editBtn.addEventListener('click', function(){
+      editRow.hidden = !editRow.hidden;
+      if (!editRow.hidden) titleInput.focus();
+    });
+    cancelBtn.addEventListener('click', function(){
+      titleInput.value = r.title; monthInput.value = r.monthYear; linkInput.value = r.chatLink || '';
+      editError.hidden = true;
+      editRow.hidden = true;
+    });
+    saveBtn.addEventListener('click', function(){
+      var newTitle = titleInput.value.trim();
+      var newMonth = monthInput.value;
+      var newLink = linkInput.value.trim();
+      editError.hidden = true;
+      if (!newTitle || !newMonth){
+        editError.hidden = false;
+        editError.textContent = 'A book title and a month are both required.';
+        return;
+      }
+      saveBtn.disabled = true;
+      var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
+        'action=updateGroupRead&id=' + encodeURIComponent(r.id) + '&title=' + encodeURIComponent(newTitle) +
+        '&monthYear=' + encodeURIComponent(newMonth) + '&chatLink=' + encodeURIComponent(newLink);
+      fetch(url).then(function(res){
+        if (!res.ok) throw { code: 'network' };
+        return res.json();
+      }).then(function(data){
+        saveBtn.disabled = false;
+        if (!data || data.ok === false){
+          editError.hidden = false;
+          editError.textContent = (data && data.error) || 'Could not save — try again.';
+          return;
+        }
+        r.title = newTitle; r.monthYear = newMonth; r.chatLink = newLink;
+        renderGroupReads();
+      }).catch(function(){
+        saveBtn.disabled = false;
+        editError.hidden = false;
+        editError.textContent = 'Could not reach the server — try again.';
+      });
+    });
+
+    return row;
+  }
+
+  function renderGroupReads(){
+    els.readList.innerHTML = '';
+    var showPast = els.readViewSelect.value === 'past';
+    var filtered = groupReadsCache.filter(function(r){
+      var isPast = !!groupReadsCurrentMonthYear && !!r.monthYear && r.monthYear < groupReadsCurrentMonthYear;
+      return showPast ? isPast : !isPast;
+    });
+    if (!filtered.length){
+      els.readListSub.textContent = showPast
+        ? 'No past group reads yet.'
+        : 'No active group reads on the calendar yet — add one below.';
+      return;
+    }
+    els.readListSub.textContent = filtered.length + (filtered.length === 1 ? ' book' : ' books') +
+      (showPast ? ' in past group reads.' : ' coming up, soonest first.');
+    filtered.forEach(function(r){ els.readList.appendChild(readRow(r)); });
+  }
+
+  function loadGroupReads(){
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.readListSub.textContent = 'This app isn’t connected yet.';
+      return;
+    }
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getGroupReads';
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      if (!data || data.ok === false) throw new Error((data && data.error) || 'unknown');
+      groupReadsCache = data.reads || [];
+      groupReadsCurrentMonthYear = data.currentMonthYear || '';
+      renderGroupReads();
+    }).catch(function(){
+      els.readListSub.textContent = 'Could not reach the server — try refreshing the page.';
+    });
+  }
+
+  els.readViewSelect.addEventListener('change', renderGroupReads);
+
+  els.readAddBtn.addEventListener('click', function(){
+    var title = els.readTitle.value.trim();
+    var month = els.readMonth.value;
+    var link = els.readLink.value.trim();
+    els.readAddError.hidden = true;
+    if (!title || !month){
+      els.readAddError.hidden = false;
+      els.readAddError.textContent = 'Add a book title and pick a month at least.';
+      return;
+    }
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.readAddError.hidden = false;
+      els.readAddError.textContent = 'This app isn’t connected yet — ask whoever set it up to finish configuring it.';
+      return;
+    }
+    els.readAddBtn.disabled = true;
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
+      'action=addGroupRead&title=' + encodeURIComponent(title) + '&monthYear=' + encodeURIComponent(month) + '&chatLink=' + encodeURIComponent(link);
+    fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    }).then(function(data){
+      els.readAddBtn.disabled = false;
+      if (!data || data.ok === false){
+        els.readAddError.hidden = false;
+        els.readAddError.textContent = (data && data.error) || 'Could not add — try again.';
+        return;
+      }
+      els.readTitle.value = ''; els.readMonth.value = ''; els.readLink.value = '';
+      loadGroupReads();
+    }).catch(function(){
+      els.readAddBtn.disabled = false;
+      els.readAddError.hidden = false;
+      els.readAddError.textContent = 'Could not reach the server — try again.';
+    });
+  });
+
   loadRoster();
   loadBirthdays();
   loadProjects();
+  loadGroupReads();
 })();
 </script>
 </body>
