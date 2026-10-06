@@ -88,6 +88,13 @@
   button.ghost{ background:transparent; border:1px solid var(--border); color:var(--ink); padding:10px 14px; border-radius:12px; font-weight:600; font-size:0.85rem; cursor:pointer; font-family:var(--font-body); }
   button.small{ padding:6px 11px; font-size:0.76rem; border-radius:9px; }
   .note{ font-size:0.78rem; color:var(--accent-soft); margin-top:10px; font-family:var(--font-mono); }
+
+  .gate{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px; z-index:100; }
+  .gate[hidden]{ display:none; }
+  .gate .card{ width:100%; max-width:380px; }
+  .gate-error{ font-size:0.84rem; color:var(--danger); margin-top:12px; line-height:1.5; }
+  .gate-error[hidden]{ display:none; }
+  .app[hidden]{ display:none; }
   .error-note{ font-size:0.8rem; color:var(--danger); margin-top:10px; }
 
   .empty{ font-size:0.86rem; color:var(--ink-soft); padding:10px 0; }
@@ -144,15 +151,22 @@
   .access-check.no{ background:var(--surface-2); color:var(--ink-soft); }
   .access-name{ flex:1; font-size:0.92rem; }
   .access-time{ font-size:0.7rem; color:var(--ink-soft); font-family:var(--font-mono); }
-
-  /* ===== Update banner ===== */
-  .update-bar{ position:fixed; left:16px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); z-index:1000; max-width:520px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:var(--surface-2); color:var(--ink); border:1px solid var(--accent); border-radius:var(--radius-card); box-shadow:var(--shadow); font-family:var(--font-body); font-size:0.9rem; line-height:1.35; }
-  .update-bar[hidden]{ display:none; }
-  .update-bar button{ flex:none; width:auto; margin:0; padding:9px 16px; border:0; border-radius:var(--radius-pill); background:var(--accent); color:#0C0920; font-family:var(--font-body); font-weight:700; font-size:0.85rem; cursor:pointer; }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="gate" id="gate" hidden>
+  <div class="card">
+    <p class="section-title">Book Buddies admin</p>
+    <p class="section-sub">Enter your Instagram username to continue.</p>
+    <div class="field-row">
+      <label class="field-label" for="gate-user">Instagram username</label>
+      <input type="text" id="gate-user" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="yourusername">
+    </div>
+    <button class="primary" id="gate-btn">Continue</button>
+    <p class="gate-error" id="gate-error" hidden></p>
+  </div>
+</div>
+<div class="app" id="app" hidden>
   <header class="topbar">
     <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 5.5c2.2-1 4.8-1 7 0v13c-2.2-1-4.8-1-7 0z"></path>
@@ -275,7 +289,7 @@
     <section id="tab-setup" class="panel">
       <div class="card">
         <p class="section-title"><span class="status-dot" id="status-dot"></span><span id="status-text">Checking connection…</span></p>
-        <p class="section-sub">This app stores its data in a Google Sheet through a small free backend. Connect it once below.</p>
+        <p class="section-sub">This app connects to its Google Sheet automatically. You only need the box below if the status says “Not connected.”</p>
         <div class="field-row">
           <label class="field-label" for="api-url">Apps Script Web App URL</label>
           <input type="url" id="api-url" placeholder="https://script.google.com/macros/s/…/exec">
@@ -284,7 +298,7 @@
         <p class="note" id="setup-note" hidden></p>
       </div>
       <div class="card setup-steps">
-        <p class="section-title">First-time setup</p>
+        <p class="section-title">If it won’t connect on its own</p>
         <ol>
           <li>Create a new Google Sheet at sheets.google.com.</li>
           <li>Go to <b>Extensions → Apps Script</b> and paste in the provided <code class="inline">Code.gs</code> file.</li>
@@ -292,6 +306,10 @@
           <li>Copy the URL ending in <code class="inline">/exec</code> and paste it above, then tap Connect.</li>
         </ol>
         <p class="section-sub">Full written steps are in <code class="inline">SETUP.md</code>.</p>
+      </div>
+      <div class="card">
+        <p class="section-title">Signed in as <span id="signed-in-as"></span></p>
+        <button class="ghost" id="sign-out-btn" style="margin-top:10px;">Sign out on this device</button>
       </div>
     </section>
   </main>
@@ -302,7 +320,12 @@
 (function(){
   "use strict";
 
-  var CONFIG = { API_URL: "" }; // optionally hardcode a deployed Apps Script URL here
+  var CONFIG = {
+    API_URL: "", // optional: hardcode the Apps Script URL here. Normally leave blank — it's read automatically from index.html.
+    // Instagram usernames allowed into this admin page (lowercase, no @).
+    // NOTE: this is a convenience gate in the page itself, not real security.
+    ADMINS: ["carogetsbooked", "stephbetweenpages"]
+  };
 
   var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "" };
 
@@ -912,55 +935,80 @@
     for (var j=0;j<5;j++){ els.rosterList.appendChild(h('div', { class:'skeleton-row' }, [h('div', { class:'skeleton' })])); }
   }
 
-  // ---------- init ----------
-  els.monthInput.value = currentMonthStr();
-  var saved = loadApiUrl();
-  els.apiUrlInput.value = saved;
-  if (saved){
-    showSkeleton();
-    connect(saved);
-  } else {
-    setStatus(false, 'Not set up yet');
-    document.querySelector('.tab[data-tab="setup"]').click();
-  }
-})();
-</script>
-<!-- ===== Update checker =====
-     Every time you upload a changed copy of this page, bump APP_VERSION below (1 -> 2 -> 3 ...).
-     Anyone with an older copy open will see a "new version" banner with a Refresh button. -->
-<div id="updateBar" class="update-bar" role="status" hidden>
-  <span>A new version of Book Buddies is ready.</span>
-  <button type="button" id="updateBtn">Refresh</button>
-</div>
-<script>
-var APP_VERSION = "1";
-(function(){
-  var bar = document.getElementById('updateBar');
-  var btn = document.getElementById('updateBtn');
-  var newVersion = null, checking = false;
-  function pageUrl(){ return location.href.split('#')[0].split('?')[0]; }
-  function check(){
-    if (checking || newVersion || !window.fetch) return;
-    checking = true;
-    fetch(pageUrl() + '?check=' + Date.now(), { cache: 'no-store' })
-      .then(function(r){ return r.ok ? r.text() : ''; })
-      .then(function(html){
-        var m = html.match(/var APP_VERSION = "([^"]+)"/);
-        if (m && m[1] !== APP_VERSION){ newVersion = m[1]; bar.hidden = false; }
-      })
-      .catch(function(){})
-      .then(function(){ checking = false; });
-  }
-  btn.addEventListener('click', function(){
-    btn.disabled = true; btn.textContent = 'Updating…';
-    // Refresh the phone's saved copy of the normal link, then load the new version.
-    fetch(pageUrl(), { cache: 'reload' }).catch(function(){}).then(function(){
-      location.replace(pageUrl() + '?v=' + encodeURIComponent(newVersion) + location.hash);
+  // ---------- auto-detect the backend link ----------
+  // index.html (same site) already has the Apps Script URL in it, so read it
+  // from there instead of making the organizer paste it a second time.
+  function detectApiUrl(){
+    if (CONFIG.API_URL) return Promise.resolve(CONFIG.API_URL);
+    return fetch('index.html', { cache: 'no-store' }).then(function(res){
+      if (!res.ok) throw new Error('no index.html');
+      return res.text();
+    }).then(function(text){
+      var m = text.match(/API_URL:\s*"([^"]+)"/);
+      if (m && m[1].indexOf('PASTE_') !== 0) return m[1];
+      return '';
+    }).catch(function(){ return ''; }).then(function(found){
+      return found || loadApiUrl();
     });
+  }
+
+  function startApp(){
+    els.monthInput.value = currentMonthStr();
+    showSkeleton();
+    setStatus(false, 'Connecting…');
+    detectApiUrl().then(function(url){
+      els.apiUrlInput.value = url;
+      if (url){
+        connect(url);
+      } else {
+        setStatus(false, 'Not set up yet');
+        document.querySelector('.tab[data-tab="setup"]').click();
+      }
+    });
+  }
+
+  // ---------- username gate ----------
+  var ADMIN_KEY = 'bookBuddies.adminUser';
+  function normUser(s){ return String(s || '').trim().replace(/^@/, '').toLowerCase(); }
+  function isAdmin(u){ return CONFIG.ADMINS.indexOf(normUser(u)) !== -1; }
+
+  var gateEl = document.getElementById('gate');
+  var appEl = document.getElementById('app');
+  var gateUser = document.getElementById('gate-user');
+  var gateBtn = document.getElementById('gate-btn');
+  var gateError = document.getElementById('gate-error');
+  var started = false;
+
+  function enter(user){
+    document.getElementById('signed-in-as').textContent = '@' + normUser(user);
+    gateEl.hidden = true;
+    appEl.hidden = false;
+    if (!started){ started = true; startApp(); }
+  }
+  function showGate(){
+    appEl.hidden = true;
+    gateEl.hidden = false;
+    gateUser.value = '';
+    gateUser.focus();
+  }
+  function submitGate(){
+    var u = gateUser.value;
+    if (!normUser(u)){ gateError.hidden = false; gateError.textContent = 'Enter your Instagram username.'; return; }
+    if (!isAdmin(u)){ gateError.hidden = false; gateError.textContent = 'That username doesn’t have access to the admin page.'; return; }
+    gateError.hidden = true;
+    try { localStorage.setItem(ADMIN_KEY, normUser(u)); } catch (e) {}
+    enter(u);
+  }
+  gateBtn.addEventListener('click', submitGate);
+  gateUser.addEventListener('keydown', function(e){ if (e.key === 'Enter') submitGate(); });
+  document.getElementById('sign-out-btn').addEventListener('click', function(){
+    try { localStorage.removeItem(ADMIN_KEY); } catch (e) {}
+    location.reload();
   });
-  check();
-  document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
-  setInterval(check, 30 * 60 * 1000);
+
+  var rememberedUser = '';
+  try { rememberedUser = localStorage.getItem(ADMIN_KEY) || ''; } catch (e) {}
+  if (rememberedUser && isAdmin(rememberedUser)) enter(rememberedUser); else showGate();
 })();
 </script>
 </body>
