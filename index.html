@@ -128,9 +128,15 @@
   .read-edit-actions button{ width:auto; }
   button.primary.small{ padding:8px 12px; font-size:0.78rem; width:auto; margin-top:0; }
 
+  .mylist-edit{ margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
+  .mylist-edit[hidden]{ display:none; }
+  .mylist-ok{ font-size:0.86rem; color:var(--accent-soft); margin-top:12px; line-height:1.5; }
+  .mylist-ok[hidden]{ display:none; }
+
   .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
+
 
   /* ===== Update banner ===== */
   .update-bar{ position:fixed; left:16px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom)); z-index:1000; max-width:520px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:var(--surface-2); color:var(--ink); border:1px solid var(--accent); border-radius:var(--radius-card); box-shadow:var(--shadow); font-family:var(--font-body); font-size:0.9rem; line-height:1.35; }
@@ -153,6 +159,7 @@
     <button class="tab" data-tab="birthdays" role="tab" aria-selected="false">Birthdays</button>
     <button class="tab" data-tab="collabs" role="tab" aria-selected="false">Collabs</button>
     <button class="tab" data-tab="group-reads" role="tab" aria-selected="false">Group Reads</button>
+    <button class="tab" data-tab="my-list" role="tab" aria-selected="false">My List</button>
   </nav>
 
   <main>
@@ -279,15 +286,44 @@
         <div class="read-list" id="read-list"></div>
       </div>
     </section>
+    <section id="tab-my-list" class="panel">
+      <div class="card">
+        <p class="lede">Update your wishlist link</p>
+        <p class="sub">Got a new Amazon list? Type your Instagram username to pull up your current link, then paste in the new one.</p>
+        <div class="field-row">
+          <label class="field-label" for="mylist-user">Instagram username</label>
+          <input type="text" id="mylist-user" placeholder="yourusername" autocomplete="off" autocapitalize="none" spellcheck="false">
+        </div>
+        <button class="primary" id="mylist-find-btn">Find me</button>
+        <p class="error-note" id="mylist-error" hidden></p>
+
+        <div class="mylist-edit" id="mylist-edit" hidden>
+          <p class="sub" id="mylist-hello"></p>
+          <div class="field-row">
+            <label class="field-label" for="mylist-link">Your wishlist link</label>
+            <input type="text" id="mylist-link" placeholder="https://www.amazon.com/hz/wishlist/ls/…">
+          </div>
+          <button class="primary" id="mylist-save-btn">Save my link</button>
+          <p class="mylist-ok" id="mylist-ok" hidden></p>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
+<script src="config.js"></script>
 <script>
 (function(){
   "use strict";
 
   // Fill this in once, before hosting: your deployed Apps Script Web App URL.
-  var CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbylNEF1u7vh_MVXTB8BC8FA6s9bXFYk8k3clmxyXoTbZ_1BQqcaTk-PDsFC7hMoHz5n/exec" };
+  var CONFIG = { API_URL: "PASTE_YOUR_APPS_SCRIPT_URL_HERE" };
+  // Preferred: set the URL once in config.js instead, so re-uploading a new
+  // index.html later never wipes it out. The line above still works too.
+  if (CONFIG.API_URL.indexOf('PASTE_') === 0 && window.BOOK_BUDDIES_CONFIG && window.BOOK_BUDDIES_CONFIG.API_URL &&
+      String(window.BOOK_BUDDIES_CONFIG.API_URL).indexOf('PASTE_') !== 0){
+    CONFIG.API_URL = window.BOOK_BUDDIES_CONFIG.API_URL;
+  }
 
   var els = {
     username: document.getElementById('username'),
@@ -326,6 +362,14 @@
     readListSub: document.getElementById('read-list-sub'),
     readList: document.getElementById('read-list'),
     readViewSelect: document.getElementById('read-view-select'),
+    mylistUser: document.getElementById('mylist-user'),
+    mylistFindBtn: document.getElementById('mylist-find-btn'),
+    mylistError: document.getElementById('mylist-error'),
+    mylistEdit: document.getElementById('mylist-edit'),
+    mylistHello: document.getElementById('mylist-hello'),
+    mylistLink: document.getElementById('mylist-link'),
+    mylistSaveBtn: document.getElementById('mylist-save-btn'),
+    mylistOk: document.getElementById('mylist-ok'),
   };
 
   function monthLabel(m){
@@ -1042,6 +1086,85 @@
     });
   });
 
+  // ---------- My List (update your own wishlist link) ----------
+  var mylistLookedUp = ''; // the username that was actually found, so Save can't drift from it
+
+  function mylistShowError(msg){ els.mylistError.hidden = false; els.mylistError.textContent = msg; }
+
+  function mylistCall(action, params){
+    var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=' + action;
+    for (var k in params){ url += '&' + k + '=' + encodeURIComponent(params[k]); }
+    return fetch(url).then(function(res){
+      if (!res.ok) throw { code: 'network' };
+      return res.json();
+    });
+  }
+
+  function mylistNotConnected(){
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      mylistShowError('This app isn’t connected yet — ask whoever set it up to finish configuring it.');
+      return true;
+    }
+    return false;
+  }
+
+  function mylistFind(){
+    var u = els.mylistUser.value.trim();
+    els.mylistError.hidden = true; els.mylistOk.hidden = true; els.mylistEdit.hidden = true;
+    if (!u){ mylistShowError('Enter your Instagram username first.'); return; }
+    if (mylistNotConnected()) return;
+    els.mylistFindBtn.disabled = true;
+    mylistCall('getMyLink', { username: u }).then(function(data){
+      els.mylistFindBtn.disabled = false;
+      if (!data || data.ok === false){
+        mylistShowError(data && data.error === 'no_match'
+          ? 'Couldn’t find that username on the roster. Check the spelling, or ask whoever runs Book Buddies to add you.'
+          : 'Something went wrong — try again.');
+        return;
+      }
+      mylistLookedUp = u;
+      els.mylistHello.textContent = 'Hi ' + data.name + '! Here’s the link we have for you right now:';
+      els.mylistLink.value = data.wishlistLink || '';
+      els.mylistEdit.hidden = false;
+      els.mylistLink.focus();
+    }).catch(function(){
+      els.mylistFindBtn.disabled = false;
+      mylistShowError('Could not reach the server — try again.');
+    });
+  }
+
+  function mylistSave(){
+    var link = els.mylistLink.value.trim();
+    els.mylistError.hidden = true; els.mylistOk.hidden = true;
+    if (!/^https?:\/\/\S+$/i.test(link)){
+      mylistShowError('That doesn’t look like a link — it should start with https://');
+      return;
+    }
+    if (mylistNotConnected()) return;
+    els.mylistSaveBtn.disabled = true;
+    mylistCall('updateMyLink', { username: mylistLookedUp, link: link }).then(function(data){
+      els.mylistSaveBtn.disabled = false;
+      if (!data || data.ok === false){
+        mylistShowError(data && data.error === 'bad_link'
+          ? 'That doesn’t look like a valid link — it should start with https://'
+          : 'Couldn’t save — try again.');
+        return;
+      }
+      els.mylistLink.value = data.wishlistLink;
+      els.mylistOk.hidden = false;
+      els.mylistOk.textContent = 'Saved! Your buddy and everyone else will see this link from now on.';
+      loadRoster();
+    }).catch(function(){
+      els.mylistSaveBtn.disabled = false;
+      mylistShowError('Could not reach the server — try again.');
+    });
+  }
+
+  els.mylistFindBtn.addEventListener('click', mylistFind);
+  els.mylistUser.addEventListener('keydown', function(e){ if (e.key === 'Enter') mylistFind(); });
+  els.mylistSaveBtn.addEventListener('click', mylistSave);
+  els.mylistLink.addEventListener('keydown', function(e){ if (e.key === 'Enter') mylistSave(); });
+
   loadRoster();
   loadBirthdays();
   loadProjects();
@@ -1056,7 +1179,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "1";
+var APP_VERSION = "2";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
