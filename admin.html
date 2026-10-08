@@ -1028,7 +1028,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "2";
+var APP_VERSION = "3";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
@@ -1054,8 +1054,13 @@ var APP_VERSION = "2";
     });
   });
   check();
+  // iPhone home-screen apps are usually resumed, not reloaded, so re-check on
+  // every way the app can come back to the foreground.
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
-  setInterval(check, 30 * 60 * 1000);
+  window.addEventListener('pageshow', check);
+  window.addEventListener('focus', check);
+  window.addEventListener('online', check);
+  setInterval(check, 15 * 60 * 1000);
 })();
 </script>
 </body>

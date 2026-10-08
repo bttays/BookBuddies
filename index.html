@@ -50,12 +50,24 @@
   }
   .app{ max-width:420px; margin:0 auto; padding:40px 20px 60px; display:flex; flex-direction:column; min-height:100vh; }
 
-  .topbar{ display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:20px; }
+  .topbar{ position:relative; display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:20px; }
   .mark{ width:32px; height:32px; color:var(--primary); flex:0 0 auto; }
 
-  .tabs{ display:flex; gap:4px; background:rgba(34,28,66,0.82); padding:4px; border-radius:999px; margin-bottom:20px; position:sticky; top:0; z-index:10; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-  .tab{ flex:1; border:none; background:transparent; padding:9px 4px; border-radius:999px; font-family:var(--font-body); font-weight:600; font-size:0.86rem; color:var(--ink-soft); cursor:pointer; transition:background .15s ease,color .15s ease; }
-  .tab.active{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
+  .menu-btn{ position:absolute; left:0; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:12px; border:1px solid var(--border); background:rgba(34,28,66,0.82); color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .menu-btn[hidden]{ display:none; }
+  .menu{ position:absolute; z-index:60; left:0; right:0; top:calc(100% + 8px); background:rgba(23,19,49,0.98); border:1px solid var(--border); border-radius:var(--radius-card); box-shadow:var(--shadow); padding:8px; display:flex; flex-direction:column; gap:2px; text-align:left; }
+  .menu[hidden]{ display:none; }
+  .menu-item{ text-align:left; background:none; border:none; color:var(--ink); padding:13px 14px; border-radius:10px; font-family:var(--font-body); font-weight:600; font-size:1rem; cursor:pointer; width:100%; }
+  .menu-item:hover{ background:var(--primary-tint); }
+  .menu-item.active{ background:var(--primary-tint); color:var(--accent-soft); }
+  .menu-sep{ height:1px; background:var(--border); margin:6px 4px; }
+  .menu-user{ font-family:var(--font-mono); font-size:0.78rem; color:var(--ink-soft); padding:6px 14px 2px; margin:0; }
+  .menu-item.switch{ font-weight:500; font-size:0.9rem; color:var(--ink-soft); }
+  .menu-backdrop{ position:fixed; inset:0; z-index:55; background:rgba(5,3,15,0.5); }
+  .menu-backdrop[hidden]{ display:none; }
+  .landing{ margin-top:8vh; }
+  .landing[hidden], main[hidden]{ display:none; }
+  #buddy-card .result{ margin-top:6px; padding-top:0; border-top:none; }
   main{ display:flex; flex-direction:column; }
   .panel{ display:none; flex-direction:column; gap:16px; }
   .panel.active{ display:flex; }
@@ -128,8 +140,6 @@
   .read-edit-actions button{ width:auto; }
   button.primary.small{ padding:8px 12px; font-size:0.78rem; width:auto; margin-top:0; }
 
-  .mylist-edit{ margin-top:18px; padding-top:18px; border-top:1px solid var(--border); }
-  .mylist-edit[hidden]{ display:none; }
   .mylist-ok{ font-size:0.86rem; color:var(--accent-soft); margin-top:12px; line-height:1.5; }
   .mylist-ok[hidden]{ display:none; }
 
@@ -152,28 +162,40 @@
       <path d="M21 5.5c-2.2-1-4.8-1-7 0v13c2.2-1 4.8-1 7 0z"></path>
     </svg>
     <div class="brand"><h1>Book Buddies</h1></div>
+    <button class="menu-btn" id="menu-btn" type="button" aria-label="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="menu" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+    </button>
+    <nav class="menu" id="menu" aria-label="Main menu" hidden>
+      <button class="menu-item" type="button" data-tab="buddy">My Book Buddy</button>
+      <button class="menu-item" type="button" data-tab="birthdays">Birthdays</button>
+      <button class="menu-item" type="button" data-tab="collabs">Collabs</button>
+      <button class="menu-item" type="button" data-tab="group-reads">Group Reads</button>
+      <button class="menu-item" type="button" data-tab="my-list">My Wishlist</button>
+      <div class="menu-sep"></div>
+      <p class="menu-user">Signed in as <span id="menu-user"></span></p>
+      <button class="menu-item switch" type="button" id="switch-user-btn">Not you? Switch user</button>
+    </nav>
   </header>
+  <div class="menu-backdrop" id="menu-backdrop" hidden></div>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="buddy" role="tab" aria-selected="true">Buddy</button>
-    <button class="tab" data-tab="birthdays" role="tab" aria-selected="false">Birthdays</button>
-    <button class="tab" data-tab="collabs" role="tab" aria-selected="false">Collabs</button>
-    <button class="tab" data-tab="group-reads" role="tab" aria-selected="false">Group Reads</button>
-    <button class="tab" data-tab="my-list" role="tab" aria-selected="false">My List</button>
-  </nav>
+  <section id="landing" class="landing" hidden>
+    <div class="card">
+      <p class="lede">Welcome to Book Buddies</p>
+      <p class="sub">Enter your Instagram username to come on in.</p>
+      <div class="field-row">
+        <label class="field-label" for="landing-user">Instagram username</label>
+        <input type="text" id="landing-user" placeholder="yourusername" autocomplete="username" autocapitalize="none" spellcheck="false">
+      </div>
+      <button class="primary" id="landing-btn">Come on in</button>
+      <p class="error-note" id="landing-error" hidden></p>
+    </div>
+  </section>
 
-  <main>
+  <main id="main" hidden>
     <section id="tab-buddy" class="panel active">
-      <div class="card">
-        <p class="lede">Find your book buddy</p>
-        <p class="sub">Enter your Instagram username to see who you're sending a book to this month.</p>
-
-        <div class="field-row">
-          <label class="field-label" for="username">Instagram username</label>
-          <input type="text" id="username" placeholder="yourusername" autocomplete="username">
-        </div>
-
-        <button class="primary" id="reveal-btn">Reveal my buddy</button>
+      <div class="card" id="buddy-card">
+        <p class="lede">Your book buddy</p>
+        <p class="sub" id="buddy-status">Looking up your buddy…</p>
         <p class="error-note" id="error-note" hidden></p>
 
         <div class="result" id="result">
@@ -288,19 +310,12 @@
     </section>
     <section id="tab-my-list" class="panel">
       <div class="card">
-        <p class="lede">Update your wishlist link</p>
-        <p class="sub">Got a new Amazon list? Type your Instagram username to pull up your current link, then paste in the new one.</p>
-        <div class="field-row">
-          <label class="field-label" for="mylist-user">Instagram username</label>
-          <input type="text" id="mylist-user" placeholder="yourusername" autocomplete="off" autocapitalize="none" spellcheck="false">
-        </div>
-        <button class="primary" id="mylist-find-btn">Find me</button>
+        <p class="lede">Your wishlist link</p>
+        <p class="sub" id="mylist-hello">Loading…</p>
         <p class="error-note" id="mylist-error" hidden></p>
-
-        <div class="mylist-edit" id="mylist-edit" hidden>
-          <p class="sub" id="mylist-hello"></p>
+        <div id="mylist-edit" hidden>
           <div class="field-row">
-            <label class="field-label" for="mylist-link">Your wishlist link</label>
+            <label class="field-label" for="mylist-link">Wishlist link</label>
             <input type="text" id="mylist-link" placeholder="https://www.amazon.com/hz/wishlist/ls/…">
           </div>
           <button class="primary" id="mylist-save-btn">Save my link</button>
@@ -326,8 +341,17 @@
   }
 
   var els = {
-    username: document.getElementById('username'),
-    revealBtn: document.getElementById('reveal-btn'),
+    landing: document.getElementById('landing'),
+    landingUser: document.getElementById('landing-user'),
+    landingBtn: document.getElementById('landing-btn'),
+    landingError: document.getElementById('landing-error'),
+    main: document.getElementById('main'),
+    menuBtn: document.getElementById('menu-btn'),
+    menu: document.getElementById('menu'),
+    menuBackdrop: document.getElementById('menu-backdrop'),
+    menuUser: document.getElementById('menu-user'),
+    switchBtn: document.getElementById('switch-user-btn'),
+    buddyStatus: document.getElementById('buddy-status'),
     errorNote: document.getElementById('error-note'),
     result: document.getElementById('result'),
     resultMonth: document.getElementById('result-month'),
@@ -362,8 +386,6 @@
     readListSub: document.getElementById('read-list-sub'),
     readList: document.getElementById('read-list'),
     readViewSelect: document.getElementById('read-view-select'),
-    mylistUser: document.getElementById('mylist-user'),
-    mylistFindBtn: document.getElementById('mylist-find-btn'),
     mylistError: document.getElementById('mylist-error'),
     mylistEdit: document.getElementById('mylist-edit'),
     mylistHello: document.getElementById('mylist-hello'),
@@ -392,11 +414,6 @@
     } else { fallback(); }
   }
 
-  function setLoading(loading){
-    els.revealBtn.disabled = loading;
-    els.revealBtn.innerHTML = loading ? '<span class="spinner"></span>Looking that up…' : 'Reveal my buddy';
-  }
-
   function showError(msg){
     els.result.classList.remove('show');
     els.errorNote.hidden = false;
@@ -405,6 +422,7 @@
 
   function showResult(data){
     els.errorNote.hidden = true;
+    els.buddyStatus.textContent = 'Hi ' + data.yourName + '! Here’s who you’re sending a book to this month.';
     els.resultMonth.textContent = monthLabel(data.month) + ' book buddy';
     els.resultName.textContent = data.buddyName;
     if (data.buddyLink){
@@ -418,44 +436,41 @@
       els.copyBtn.style.display = 'none';
     }
     els.result.classList.add('show');
-    revealBirthdaysAfterCard();
   }
 
-  function reveal(){
-    var username = els.username.value.trim();
+  // Looks up the signed-in user's buddy. noLog = true when someone is just
+  // re-opening the app (already signed in), so only a fresh sign-in counts as
+  // "checking" in the admin tool's Access tab.
+  function lookupBuddy(noLog){
     els.errorNote.hidden = true;
-    if (!username){
-      showError('Enter your username first.');
-      return;
-    }
+    els.result.classList.remove('show');
+    if (!currentUser) return;
+    els.buddyStatus.textContent = 'Looking up your buddy…';
     if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      els.buddyStatus.textContent = 'Hi ' + currentUser + '!';
       showError('This app isn’t connected yet — ask whoever set it up to finish configuring it.');
       return;
     }
-    setLoading(true);
     var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') +
-      'action=lookupBuddy&username=' + encodeURIComponent(username);
+      'action=lookupBuddy&username=' + encodeURIComponent(currentUser) + (noLog ? '&nolog=1' : '');
     fetch(url).then(function(res){
       if (!res.ok) throw { code: 'network' };
       return res.json();
     }).then(function(data){
-      setLoading(false);
       if (!data || data.ok === false){
         var err = (data && data.error) || 'unknown';
+        els.buddyStatus.textContent = 'Hi ' + currentUser + '!';
         if (err === 'no_round') showError('No pairing has been generated yet for this round — check back soon.');
         else if (err === 'not_in_round') showError('Looks like you’re not part of this month’s round.');
-        else showError('We couldn’t find that username — double check the spelling, or ask whoever set this up.');
+        else showError('We couldn’t find you on the roster anymore — open the menu and tap “Switch user,” or ask whoever runs Book Buddies.');
         return;
       }
       showResult(data);
     }).catch(function(){
-      setLoading(false);
+      els.buddyStatus.textContent = 'Hi ' + currentUser + '!';
       showError('Something went wrong reaching the server — try again in a moment.');
     });
   }
-
-  els.revealBtn.addEventListener('click', reveal);
-  els.username.addEventListener('keydown', function(e){ if (e.key === 'Enter') reveal(); });
 
   // ---------- "Send someone a book" roster browser ----------
   var rosterList = [];   // everyone, loaded once: [{id, name, wishlistLink}]
@@ -531,13 +546,14 @@
     els.browseSuggestions.hidden = false;
   }
 
+  var rosterPromise = null;
   function loadRoster(){
     if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
       els.browseInput.placeholder = 'Not set up yet';
-      return;
+      return Promise.resolve();
     }
     var url = CONFIG.API_URL + (CONFIG.API_URL.indexOf('?') >= 0 ? '&' : '?') + 'action=getRoster';
-    fetch(url).then(function(res){
+    rosterPromise = fetch(url).then(function(res){
       if (!res.ok) throw { code: 'network' };
       return res.json();
     }).then(function(data){
@@ -549,6 +565,7 @@
       els.browseInput.placeholder = 'Could not load roster';
       showBrowseError('Could not reach the server — try refreshing the page.');
     });
+    return rosterPromise;
   }
 
   els.browseInput.addEventListener('input', function(){
@@ -700,6 +717,7 @@
     }
     fetchBirthdays().then(function(data){
       currentMonthBirthdays = data;
+      if (currentUser) revealBirthdaysAfterCard();
       populateMonthSelect(data.month);
       renderBirthdaysInto(els.bdayTabList, els.bdayTabSub, data);
     }).catch(function(){
@@ -711,15 +729,109 @@
     loadBirthdaysForMonth(els.bdayMonthSelect.value);
   });
 
-  // ---------- tabs ----------
-  document.querySelectorAll('.tab').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
-      btn.classList.add('active'); btn.setAttribute('aria-selected','true');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  // ---------- landing / session / menu ----------
+  var USER_KEY = 'bookBuddies.user';
+  var currentUser = ''; // the roster name of whoever is signed in on this device
+
+  function normHandle(s){ return String(s || '').trim().replace(/^@/, '').toLowerCase(); }
+  function savedUser(){ try { return localStorage.getItem(USER_KEY) || ''; } catch (e){ return ''; } }
+  function rememberUser(n){ try { localStorage.setItem(USER_KEY, n); } catch (e){} }
+  function forgetUser(){ try { localStorage.removeItem(USER_KEY); } catch (e){} }
+
+  function findInRoster(input){
+    var t = normHandle(input);
+    if (!t) return null;
+    for (var i = 0; i < rosterList.length; i++){
+      if (normHandle(rosterList[i].name) === t || normHandle(rosterList[i].id) === t) return rosterList[i];
+    }
+    return null;
+  }
+
+  function openMenu(){ els.menu.hidden = false; els.menuBackdrop.hidden = false; els.menuBtn.setAttribute('aria-expanded', 'true'); }
+  function closeMenu(){ els.menu.hidden = true; els.menuBackdrop.hidden = true; els.menuBtn.setAttribute('aria-expanded', 'false'); }
+
+  function showTab(name){
+    document.querySelectorAll('.menu-item[data-tab]').forEach(function(b){
+      var on = b.dataset.tab === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+    var panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
+    if (name === 'my-list') mylistLoad();
+    window.scrollTo(0, 0);
+  }
+
+  function enterApp(user, fresh){
+    currentUser = user;
+    els.landing.hidden = true;
+    els.main.hidden = false;
+    els.menuBtn.hidden = false;
+    els.menuUser.textContent = '@' + user;
+    if (!els.projCreator.value) els.projCreator.value = user;
+    showTab('buddy');
+    lookupBuddy(!fresh);
+    revealBirthdaysAfterCard();
+    if (projectsCache.length) renderProjects(); // so each Join box is pre-filled with this user
+  }
+
+  function leaveApp(){
+    forgetUser();
+    currentUser = '';
+    closeMenu();
+    els.main.hidden = true;
+    els.menuBtn.hidden = true;
+    els.bdayAfterCard.hidden = true;
+    els.result.classList.remove('show');
+    els.errorNote.hidden = true;
+    els.projCreator.value = '';
+    mylistReset();
+    els.landing.hidden = false;
+    els.landingUser.value = '';
+    els.landingError.hidden = true;
+    els.landingUser.focus();
+  }
+
+  function landingError(msg){ els.landingError.hidden = false; els.landingError.textContent = msg; }
+
+  function submitLanding(){
+    var u = els.landingUser.value.trim();
+    els.landingError.hidden = true;
+    if (!normHandle(u)){ landingError('Enter your Instagram username to come in.'); return; }
+    if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
+      landingError('This app isn’t connected yet — ask whoever set it up to finish configuring it.');
+      return;
+    }
+    els.landingBtn.disabled = true;
+    els.landingBtn.textContent = 'Checking…';
+    (rosterPromise || loadRoster()).then(function(){
+      els.landingBtn.disabled = false;
+      els.landingBtn.textContent = 'Come on in';
+      if (!rosterList.length){
+        rosterPromise = null; // let the next try fetch the roster again
+        landingError('We couldn’t load the roster — check your connection and try again.');
+        return;
+      }
+      var person = findInRoster(u);
+      if (!person){
+        landingError('We couldn’t find that username on the roster. Check the spelling, or ask whoever runs Book Buddies to add you.');
+        return;
+      }
+      rememberUser(person.name);
+      enterApp(person.name, true);
+    });
+  }
+
+  els.landingBtn.addEventListener('click', submitLanding);
+  els.landingUser.addEventListener('keydown', function(e){ if (e.key === 'Enter') submitLanding(); });
+  els.menuBtn.addEventListener('click', function(){ if (els.menu.hidden) openMenu(); else closeMenu(); });
+  els.menuBackdrop.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !els.menu.hidden){ closeMenu(); els.menuBtn.focus(); } });
+  document.querySelectorAll('.menu-item[data-tab]').forEach(function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.dataset.tab); closeMenu(); });
   });
+  els.switchBtn.addEventListener('click', leaveApp);
 
   // ---------- Collabs ----------
   var projectsCache = [];
@@ -781,6 +893,7 @@
     joinRow.className = 'proj-join-row'; joinRow.hidden = true;
     var joinInput = document.createElement('input');
     joinInput.type = 'text'; joinInput.placeholder = 'Your username';
+    if (currentUser) joinInput.value = currentUser;
     var confirmBtn = document.createElement('button');
     confirmBtn.className = 'ghost small'; confirmBtn.type = 'button'; confirmBtn.textContent = 'Confirm';
     joinRow.appendChild(joinInput); joinRow.appendChild(confirmBtn);
@@ -1087,7 +1200,7 @@
   });
 
   // ---------- My List (update your own wishlist link) ----------
-  var mylistLookedUp = ''; // the username that was actually found, so Save can't drift from it
+  var mylistLoadedFor = ''; // which user's link is currently showing in the form
 
   function mylistShowError(msg){ els.mylistError.hidden = false; els.mylistError.textContent = msg; }
 
@@ -1108,27 +1221,40 @@
     return false;
   }
 
-  function mylistFind(){
-    var u = els.mylistUser.value.trim();
-    els.mylistError.hidden = true; els.mylistOk.hidden = true; els.mylistEdit.hidden = true;
-    if (!u){ mylistShowError('Enter your Instagram username first.'); return; }
+  function mylistReset(){
+    mylistLoadedFor = '';
+    els.mylistEdit.hidden = true;
+    els.mylistLink.value = '';
+    els.mylistError.hidden = true;
+    els.mylistOk.hidden = true;
+    els.mylistHello.textContent = 'Loading…';
+  }
+
+  // Loads the signed-in user's current link into the form. Skipped if it's
+  // already showing, so switching tabs back and forth doesn't wipe an
+  // unsaved edit.
+  function mylistLoad(){
+    if (!currentUser) return;
+    if (mylistLoadedFor === currentUser && !els.mylistEdit.hidden) return;
+    els.mylistError.hidden = true; els.mylistOk.hidden = true;
     if (mylistNotConnected()) return;
-    els.mylistFindBtn.disabled = true;
-    mylistCall('getMyLink', { username: u }).then(function(data){
-      els.mylistFindBtn.disabled = false;
+    els.mylistHello.textContent = 'Loading your link…';
+    var who = currentUser;
+    mylistCall('getMyLink', { username: who }).then(function(data){
+      if (who !== currentUser) return; // signed out / switched while loading
       if (!data || data.ok === false){
+        els.mylistHello.textContent = '';
         mylistShowError(data && data.error === 'no_match'
-          ? 'Couldn’t find that username on the roster. Check the spelling, or ask whoever runs Book Buddies to add you.'
+          ? 'We couldn’t find you on the roster anymore — open the menu and tap “Switch user,” or ask whoever runs Book Buddies.'
           : 'Something went wrong — try again.');
         return;
       }
-      mylistLookedUp = u;
-      els.mylistHello.textContent = 'Hi ' + data.name + '! Here’s the link we have for you right now:';
+      mylistLoadedFor = who;
+      els.mylistHello.textContent = 'Hi ' + data.name + '! This is the link your buddy and everyone else sees. Paste in a new one any time.';
       els.mylistLink.value = data.wishlistLink || '';
       els.mylistEdit.hidden = false;
-      els.mylistLink.focus();
     }).catch(function(){
-      els.mylistFindBtn.disabled = false;
+      els.mylistHello.textContent = '';
       mylistShowError('Could not reach the server — try again.');
     });
   }
@@ -1142,7 +1268,7 @@
     }
     if (mylistNotConnected()) return;
     els.mylistSaveBtn.disabled = true;
-    mylistCall('updateMyLink', { username: mylistLookedUp, link: link }).then(function(data){
+    mylistCall('updateMyLink', { username: currentUser, link: link }).then(function(data){
       els.mylistSaveBtn.disabled = false;
       if (!data || data.ok === false){
         mylistShowError(data && data.error === 'bad_link'
@@ -1160,8 +1286,6 @@
     });
   }
 
-  els.mylistFindBtn.addEventListener('click', mylistFind);
-  els.mylistUser.addEventListener('keydown', function(e){ if (e.key === 'Enter') mylistFind(); });
   els.mylistSaveBtn.addEventListener('click', mylistSave);
   els.mylistLink.addEventListener('keydown', function(e){ if (e.key === 'Enter') mylistSave(); });
 
@@ -1169,6 +1293,15 @@
   loadBirthdays();
   loadProjects();
   loadGroupReads();
+
+  // Already signed in on this device? Go straight in. Otherwise show the landing page.
+  var rememberedUser = savedUser();
+  if (rememberedUser){
+    enterApp(rememberedUser, false);
+  } else {
+    els.landing.hidden = false;
+    els.landingUser.focus();
+  }
 })();
 </script>
 <!-- ===== Update checker =====
@@ -1179,7 +1312,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "2";
+var APP_VERSION = "3";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
@@ -1205,8 +1338,13 @@ var APP_VERSION = "2";
     });
   });
   check();
+  // iPhone home-screen apps are usually resumed, not reloaded, so re-check on
+  // every way the app can come back to the foreground.
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) check(); });
-  setInterval(check, 30 * 60 * 1000);
+  window.addEventListener('pageshow', check);
+  window.addEventListener('focus', check);
+  window.addEventListener('online', check);
+  setInterval(check, 15 * 60 * 1000);
 })();
 </script>
 </body>
