@@ -438,14 +438,17 @@
     els.result.classList.add('show');
   }
 
-  // Looks up the signed-in user's buddy. noLog = true when someone is just
-  // re-opening the app (already signed in), so only a fresh sign-in counts as
-  // "checking" in the admin tool's Access tab.
+  // Looks up the signed-in user's buddy. The server records it in the admin
+  // tool's Access tab (ignoring repeats from the same person within a few
+  // minutes). Runs when someone signs in, when a remembered user opens the
+  // app, and when a long-suspended home-screen app is brought back (below).
+  var lastLookupAt = 0;
   function lookupBuddy(noLog){
     els.errorNote.hidden = true;
     els.result.classList.remove('show');
     if (!currentUser) return;
     els.buddyStatus.textContent = 'Looking up your buddy…';
+    lastLookupAt = Date.now();
     if (!CONFIG.API_URL || CONFIG.API_URL.indexOf('PASTE_') === 0){
       els.buddyStatus.textContent = 'Hi ' + currentUser + '!';
       showError('This app isn’t connected yet — ask whoever set it up to finish configuring it.');
@@ -771,7 +774,7 @@
     els.menuUser.textContent = '@' + user;
     if (!els.projCreator.value) els.projCreator.value = user;
     showTab('buddy');
-    lookupBuddy(!fresh);
+    lookupBuddy(false); // counts as checking in, whether they just typed their username or were remembered
     revealBirthdaysAfterCard();
     if (projectsCache.length) renderProjects(); // so each Join box is pre-filled with this user
   }
@@ -832,6 +835,17 @@
     btn.addEventListener('click', function(){ showTab(btn.dataset.tab); closeMenu(); });
   });
   els.switchBtn.addEventListener('click', leaveApp);
+
+  // iPhone home-screen apps are usually resumed, not reloaded — so a remembered
+  // user can "open" the app without the page ever re-running. Treat coming back
+  // to the foreground after 30+ minutes as opening it again, so it's recorded
+  // and the buddy shown is current.
+  function onResume(){
+    if (document.hidden || !currentUser) return;
+    if (Date.now() - lastLookupAt > 30 * 60 * 1000) lookupBuddy(false);
+  }
+  document.addEventListener('visibilitychange', onResume);
+  window.addEventListener('pageshow', onResume);
 
   // ---------- Collabs ----------
   var projectsCache = [];
@@ -1312,7 +1326,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "3";
+var APP_VERSION = "4";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
