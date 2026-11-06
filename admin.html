@@ -50,15 +50,24 @@
   }
   .app{ max-width:480px; margin:0 auto; padding:22px 16px 90px; }
 
-  .topbar{ display:flex; align-items:center; gap:11px; padding-bottom:18px; }
+  .topbar{ position:relative; display:flex; align-items:center; gap:11px; justify-content:center; margin-bottom:20px; min-height:42px; }
   .mark{ width:30px; height:30px; color:var(--primary); flex:0 0 auto; }
   .brand h1{ font-family:var(--font-display); font-size:1.55rem; font-weight:700; margin:0; letter-spacing:-0.01em; }
   .tagline{ margin:2px 0 0; font-size:0.72rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.08em; font-family:var(--font-mono); }
 
-  .tabs{ display:flex; gap:4px; background:rgba(34,28,66,0.82); padding:4px; border-radius:var(--radius-pill); margin-bottom:20px; position:sticky; top:0; z-index:10; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
-  .tab{ flex:1; border:none; background:transparent; padding:9px 4px; border-radius:var(--radius-pill); font-family:var(--font-body); font-weight:600; font-size:0.82rem; color:var(--ink-soft); cursor:pointer; transition:background .15s ease,color .15s ease; }
-  .tab.active{ background:var(--surface); color:var(--primary-deep); box-shadow:var(--shadow); }
-  .tab:focus-visible, button:focus-visible, input:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .menu-btn{ position:absolute; left:0; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:12px; border:1px solid var(--border); background:rgba(34,28,66,0.82); color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .menu{ position:absolute; z-index:60; left:0; right:0; top:calc(100% + 8px); background:rgba(23,19,49,0.98); border:1px solid var(--border); border-radius:var(--radius-card); box-shadow:var(--shadow); padding:8px; display:flex; flex-direction:column; gap:2px; text-align:left; }
+  .menu[hidden]{ display:none; }
+  .menu-item{ text-align:left; background:none; border:none; color:var(--ink); padding:13px 14px; border-radius:10px; font-family:var(--font-body); font-weight:600; font-size:1rem; cursor:pointer; width:100%; }
+  .menu-item:hover{ background:var(--primary-tint); }
+  .menu-item.active{ background:var(--primary-tint); color:var(--accent-soft); }
+  .menu-sep{ height:1px; background:var(--border); margin:6px 4px; }
+  .menu-user{ font-family:var(--font-mono); font-size:0.78rem; color:var(--ink-soft); padding:6px 14px 2px; margin:0; }
+  .menu-version{ font-family:var(--font-mono); font-size:0.7rem; color:var(--ink-soft); opacity:0.7; padding:2px 14px 4px; margin:0; }
+  .menu-item.switch{ font-weight:500; font-size:0.9rem; color:var(--ink-soft); }
+  .menu-backdrop{ position:fixed; inset:0; z-index:55; background:rgba(5,3,15,0.5); }
+  .menu-backdrop[hidden]{ display:none; }
+  button:focus-visible, input:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
   main{ display:flex; flex-direction:column; }
   .panel{ display:none; flex-direction:column; gap:16px; }
@@ -182,16 +191,23 @@
       <h1>Book Buddies</h1>
       <p class="tagline">Monthly wishlist exchange</p>
     </div>
+    <button class="menu-btn" id="menu-btn" type="button" aria-label="Menu" aria-haspopup="true" aria-expanded="false" aria-controls="menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+    </button>
+    <nav class="menu" id="menu" aria-label="Admin menu" hidden>
+      <button class="menu-item active" type="button" data-tab="month" aria-current="page">Who's in this round?</button>
+      <button class="menu-item" type="button" data-tab="assignments">Assignments</button>
+      <button class="menu-item" type="button" data-tab="roster">Roster</button>
+      <button class="menu-item" type="button" data-tab="history">History</button>
+      <button class="menu-item" type="button" data-tab="access">Access</button>
+      <button class="menu-item" type="button" data-tab="setup">Setup</button>
+      <div class="menu-sep"></div>
+      <p class="menu-user">Signed in as <span id="signed-in-as"></span></p>
+      <button class="menu-item switch" type="button" id="sign-out-btn">Sign out on this device</button>
+      <p class="menu-version">Version <span id="app-version"></span></p>
+    </nav>
   </header>
-
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="month" role="tab" aria-selected="true">Month</button>
-    <button class="tab" data-tab="assignments" role="tab" aria-selected="false">Assignments</button>
-    <button class="tab" data-tab="roster" role="tab" aria-selected="false">Roster</button>
-    <button class="tab" data-tab="history" role="tab" aria-selected="false">History</button>
-    <button class="tab" data-tab="access" role="tab" aria-selected="false">Access</button>
-    <button class="tab" data-tab="setup" role="tab" aria-selected="false">Setup</button>
-  </nav>
+  <div class="menu-backdrop" id="menu-backdrop" hidden></div>
 
   <main>
     <section id="tab-month" class="panel active">
@@ -313,15 +329,12 @@
         </ol>
         <p class="section-sub">Full written steps are in <code class="inline">SETUP.md</code>.</p>
       </div>
-      <div class="card">
-        <p class="section-title">Signed in as <span id="signed-in-as"></span></p>
-        <button class="ghost" id="sign-out-btn" style="margin-top:10px;">Sign out on this device</button>
-      </div>
     </section>
   </main>
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="config.js"></script>
 <script>
 (function(){
   "use strict";
@@ -332,8 +345,13 @@
     // NOTE: this is a convenience gate in the page itself, not real security.
     ADMINS: ["carogetsbooked", "stephbetweenpages"]
   };
+  // config.js is loaded just above, so the backend link is known right away.
+  if (!CONFIG.API_URL && window.BOOK_BUDDIES_CONFIG && window.BOOK_BUDDIES_CONFIG.API_URL &&
+      window.BOOK_BUDDIES_CONFIG.API_URL.indexOf('PASTE_') !== 0){
+    CONFIG.API_URL = window.BOOK_BUDDIES_CONFIG.API_URL;
+  }
 
-  var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "" };
+  var state = { roster: [], rounds: [], accessLog: [], selected: new Set(), month: "", editingId: null, armedDelete: null, apiUrl: "", touched: false };
 
   var els = {
     assignmentsSelect: document.getElementById('assignments-select'),
@@ -390,6 +408,63 @@
     (children||[]).forEach(function(c){ if (c) node.appendChild(c); });
     return node;
   }
+
+  // ---------- Wishlist links: open in the Amazon app if installed, otherwise the real browser ----------
+  // Saved to the home screen, the page runs as a standalone web app, and plain links open in an
+  // in-app browser sheet. On phones we intercept wishlist taps and hand them off instead.
+  var IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var IS_ANDROID = /Android/i.test(navigator.userAgent);
+  function isStandalone(){
+    return window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+  function isAmazonUrl(u){ return /(^|\.)amazon\.[a-z.]+$/i.test(u.hostname); }
+
+  // Try an app URL; if the page is still in front after a moment, the app isn't installed.
+  function tryAppThen(appUrl, fallback){
+    var left = false;
+    function onHide(){ if (document.hidden) left = true; }
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    window.location.href = appUrl;
+    setTimeout(function(){
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      if (!left && !document.hidden) fallback();
+    }, 1500);
+  }
+
+  function openWishlist(href){
+    var u;
+    try { u = new URL(href); } catch (e) { return false; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    var rest = u.host + u.pathname + u.search + u.hash;
+
+    if (IS_ANDROID){
+      // Intent URL: opens the Amazon app if installed, otherwise Chrome loads the fallback URL.
+      if (!isAmazonUrl(u)) return false;
+      window.location.href = 'intent://' + rest + '#Intent;scheme=https;package=com.amazon.mShop.android.shopping;' +
+        'S.browser_fallback_url=' + encodeURIComponent(u.href) + ';end';
+      return true;
+    }
+
+    if (IS_IOS){
+      // From the home-screen app, x-safari-https:// opens the link in Safari proper (iOS 17+).
+      // In regular Safari, a normal tap already triggers Amazon's universal link, so leave it alone.
+      if (!isStandalone()) return false;
+      var openInSafari = function(){ window.location.href = 'x-safari-' + u.href.replace(/^http:/, 'https:'); };
+      if (isAmazonUrl(u)) tryAppThen('com.amazon.mobile.shopping.web://' + rest, openInSafari);
+      else openInSafari();
+      return true;
+    }
+    return false; // desktop: normal new tab
+  }
+
+  document.addEventListener('click', function(e){
+    var a = e.target.closest && e.target.closest('a.match-link, a.roster-link');
+    if (!a || !a.href) return;
+    if (openWishlist(a.href)) e.preventDefault();
+  });
 
   var toastTimer = null;
   function toast(msg){
@@ -541,18 +616,46 @@
   // ---------- data ----------
   function rosterById(id){ return state.roster.find(function(p){ return p.id === id; }); }
 
-  function loadAll(){
-    return API.getData().then(function(res){
-      if (!res || res.ok === false) throw new Error((res && res.error) || 'Could not load data.');
-      state.roster = (res.roster || []).slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
-      state.rounds = (res.rounds || []).slice().sort(function(a,b){ return (a.month||'').localeCompare(b.month||''); });
-      state.accessLog = res.accessLog || [];
+  // ---------- saved copy of server data ----------
+  // The server can take a few seconds to answer, so the last data loaded is
+  // saved on this device. Next visit it shows right away while a fresh copy
+  // loads in the background and replaces it.
+  var DATA_CACHE_KEY = 'bookBuddies.adminCache';
+  var lastDataJson = '';
+  function readCachedData(){
+    try { var s = localStorage.getItem(DATA_CACHE_KEY); return s ? JSON.parse(s) : null; } catch (e){ return null; }
+  }
+  function cacheState(){
+    try { localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ roster: state.roster, rounds: state.rounds, accessLog: state.accessLog })); } catch (e){}
+  }
 
+  function applyData(res){
+    var json = JSON.stringify({ roster: res.roster || [], rounds: res.rounds || [], accessLog: res.accessLog || [] });
+    if (json === lastDataJson) return; // nothing changed since what's on screen
+    lastDataJson = json;
+    state.roster = (res.roster || []).slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+    state.rounds = (res.rounds || []).slice().sort(function(a,b){ return (a.month||'').localeCompare(b.month||''); });
+    state.accessLog = res.accessLog || [];
+
+    if (!state.touched){
       var lastMonth = state.rounds.length ? state.rounds[state.rounds.length-1].month : null;
       state.month = lastMonth ? nextMonth(lastMonth) : currentMonthStr();
       state.selected = new Set(state.roster.map(function(p){ return p.id; }));
+    } else {
+      // They already started picking people — keep their choices, minus anyone no longer on the roster.
+      var ids = new Set(state.roster.map(function(p){ return p.id; }));
+      state.selected = new Set(Array.from(state.selected).filter(function(id){ return ids.has(id); }));
+    }
 
-      renderRoster(); renderMonthTab(); renderResultsForMonth(state.month); renderHistory(); renderAccess(); renderAssignmentsTab();
+    renderRoster(); renderMonthTab(); renderResultsForMonth(state.month); renderHistory(); renderAccess(); renderAssignmentsTab();
+    checkExistingNote();
+  }
+
+  function loadAll(){
+    return API.getData().then(function(res){
+      if (!res || res.ok === false) throw new Error((res && res.error) || 'Could not load data.');
+      applyData(res);
+      cacheState();
     });
   }
 
@@ -567,6 +670,7 @@
         var cb = h('input', { type:'checkbox' });
         cb.checked = state.selected.has(p.id);
         cb.addEventListener('change', function(){
+          state.touched = true;
           if (cb.checked) state.selected.add(p.id); else state.selected.delete(p.id);
           updateSelectCount();
         });
@@ -685,11 +789,12 @@
       else { state.roster.push({ id:id, name:name, wishlistLink:link }); state.roster.sort(function(a,b){ return a.name.localeCompare(b.name); }); toast('Added ' + name + ' — included in this round.'); }
       state.selected.add(id);
       els.quickAddName.value = ''; els.quickAddLink.value = ''; els.quickAddRow.hidden = true;
-      renderRoster(); renderMonthTab();
+      renderRoster(); renderMonthTab(); cacheState();
     }).catch(function(){ toast('Could not add — try again.'); });
   });
 
   els.monthInput.addEventListener('change', function(){
+    state.touched = true;
     state.month = els.monthInput.value || currentMonthStr();
     renderResultsForMonth(state.month);
     checkExistingNote();
@@ -702,8 +807,8 @@
     } else { els.generateNote.hidden = true; }
   }
 
-  els.selectAll.addEventListener('click', function(){ state.roster.forEach(function(p){ state.selected.add(p.id); }); renderMonthTab(); });
-  els.selectNone.addEventListener('click', function(){ state.selected.clear(); renderMonthTab(); });
+  els.selectAll.addEventListener('click', function(){ state.touched = true; state.roster.forEach(function(p){ state.selected.add(p.id); }); renderMonthTab(); });
+  els.selectNone.addEventListener('click', function(){ state.touched = true; state.selected.clear(); renderMonthTab(); });
 
   els.generateBtn.addEventListener('click', function(){
     els.generateError.hidden = true;
@@ -732,6 +837,7 @@
       renderHistory();
       renderAccess();
       renderAssignmentsTab();
+      cacheState();
       if (result.lookbackUsed < result.totalRounds){
         els.generateNote.hidden = false;
         els.generateNote.textContent = 'Had to loosen repeat-avoidance to the last ' + result.lookbackUsed + ' round(s) of history to find a valid match.';
@@ -762,7 +868,7 @@
             var bday = birthdayInput.value; // '' clears it, a date sets it
             API.updatePerson(p.id, val, bday).then(function(res){
               if (!res || res.ok === false) throw new Error('save failed');
-              p.wishlistLink = val; p.birthday = bday; state.editingId = null; renderRoster(); renderMonthTab(); toast('Saved.');
+              p.wishlistLink = val; p.birthday = bday; state.editingId = null; renderRoster(); renderMonthTab(); cacheState(); toast('Saved.');
             }).catch(function(){ toast('Could not save.'); });
           } }, [document.createTextNode('Save')]),
         ]));
@@ -790,7 +896,7 @@
             if (!res || res.ok === false) throw new Error('delete failed');
             state.roster = state.roster.filter(function(x){ return x.id !== p.id; });
             state.selected.delete(p.id); state.armedDelete = null;
-            renderRoster(); renderMonthTab(); toast('Removed.');
+            renderRoster(); renderMonthTab(); cacheState(); toast('Removed.');
           }).catch(function(){ toast('Could not remove.'); });
         });
       } else {
@@ -819,7 +925,7 @@
       else { state.roster.push({ id:id, name:name, wishlistLink:link, birthday:birthday }); state.roster.sort(function(a,b){ return a.name.localeCompare(b.name); }); toast('Added ' + name + '.'); }
       state.selected.add(id);
       els.newName.value = ''; els.newLink.value = ''; els.newBirthday.value = '';
-      renderRoster(); renderMonthTab();
+      renderRoster(); renderMonthTab(); cacheState();
     }).catch(function(){ toast('Could not add — try again.'); });
   });
 
@@ -904,12 +1010,11 @@
     opts = opts || {};
     state.apiUrl = url;
     setStatus(false, 'Connecting…');
-    return API.ping().then(function(res){
-      if (!res || res.ok === false) throw new Error('Backend did not respond as expected.');
+    // Loading the data doubles as the connection check (no separate ping — each server call is slow).
+    return loadAll().then(function(){
       setStatus(true, 'Connected');
       saveApiUrl(url);
-      showSkeleton();
-      return loadAll().then(function(){ checkExistingNote(); if (opts.announce) toast('Connected!'); });
+      if (opts.announce) toast('Connected!');
     }).catch(function(err){
       setStatus(false, 'Not connected');
       els.setupNote.hidden = false;
@@ -924,14 +1029,28 @@
     connect(url, { announce: true });
   });
 
-  // ---------- tabs ----------
-  document.querySelectorAll('.tab').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
-      btn.classList.add('active'); btn.setAttribute('aria-selected','true');
-      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  // ---------- menu ----------
+  var menuBtn = document.getElementById('menu-btn');
+  var menuEl = document.getElementById('menu');
+  var menuBackdrop = document.getElementById('menu-backdrop');
+  function openMenu(){ menuEl.hidden = false; menuBackdrop.hidden = false; menuBtn.setAttribute('aria-expanded', 'true'); }
+  function closeMenu(){ menuEl.hidden = true; menuBackdrop.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); }
+  function showTab(name){
+    document.querySelectorAll('.menu-item[data-tab]').forEach(function(b){
+      var on = b.dataset.tab === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+    var panel = document.getElementById('tab-' + name);
+    if (panel) panel.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+  menuBtn.addEventListener('click', function(){ if (menuEl.hidden) openMenu(); else closeMenu(); });
+  menuBackdrop.addEventListener('click', closeMenu);
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !menuEl.hidden){ closeMenu(); menuBtn.focus(); } });
+  document.querySelectorAll('.menu-item[data-tab]').forEach(function(btn){
+    btn.addEventListener('click', function(){ showTab(btn.dataset.tab); closeMenu(); });
   });
 
   function showSkeleton(){
@@ -963,7 +1082,8 @@
 
   function startApp(){
     els.monthInput.value = currentMonthStr();
-    showSkeleton();
+    var cached = readCachedData();
+    if (cached) applyData(cached); else showSkeleton();
     setStatus(false, 'Connecting…');
     detectApiUrl().then(function(url){
       els.apiUrlInput.value = url;
@@ -971,7 +1091,7 @@
         connect(url);
       } else {
         setStatus(false, 'Not set up yet');
-        document.querySelector('.tab[data-tab="setup"]').click();
+        showTab('setup');
       }
     });
   }
@@ -1028,11 +1148,13 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "4";
+var APP_VERSION = "6";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
   var newVersion = null, checking = false;
+  var versionLabel = document.getElementById('app-version');
+  if (versionLabel) versionLabel.textContent = APP_VERSION;
   function pageUrl(){ return location.href.split('#')[0].split('?')[0]; }
   function check(){
     if (checking || newVersion || !window.fetch) return;
