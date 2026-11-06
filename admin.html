@@ -442,8 +442,11 @@
 
     if (IS_ANDROID){
       // Intent URL: opens the Amazon app if installed, otherwise Chrome loads the fallback URL.
+      // The app only claims some https paths (regular /hz/wishlist links work), so other kinds of
+      // link, like gift registries, go through the app's own scheme instead.
       if (!isAmazonUrl(u)) return false;
-      window.location.href = 'intent://' + rest + '#Intent;scheme=https;package=com.amazon.mShop.android.shopping;' +
+      var scheme = /^\/hz\/wishlist\//.test(u.pathname) ? 'https' : 'com.amazon.mobile.shopping.web';
+      window.location.href = 'intent://' + rest + '#Intent;scheme=' + scheme + ';package=com.amazon.mShop.android.shopping;' +
         'S.browser_fallback_url=' + encodeURIComponent(u.href) + ';end';
       return true;
     }
@@ -1148,7 +1151,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "6";
+var APP_VERSION = "7";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
