@@ -418,6 +418,63 @@
     return names[mo-1] + ' ' + y;
   }
 
+  // ---------- Wishlist links: open in the Amazon app if installed, otherwise the real browser ----------
+  // Saved to the home screen, the page runs as a standalone web app, and plain links open in an
+  // in-app browser sheet. On phones we intercept wishlist taps and hand them off instead.
+  var IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var IS_ANDROID = /Android/i.test(navigator.userAgent);
+  function isStandalone(){
+    return window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+  function isAmazonUrl(u){ return /(^|\.)amazon\.[a-z.]+$/i.test(u.hostname); }
+
+  // Try an app URL; if the page is still in front after a moment, the app isn't installed.
+  function tryAppThen(appUrl, fallback){
+    var left = false;
+    function onHide(){ if (document.hidden) left = true; }
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    window.location.href = appUrl;
+    setTimeout(function(){
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      if (!left && !document.hidden) fallback();
+    }, 1500);
+  }
+
+  function openWishlist(href){
+    var u;
+    try { u = new URL(href); } catch (e) { return false; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false;
+    var rest = u.host + u.pathname + u.search + u.hash;
+
+    if (IS_ANDROID){
+      // Intent URL: opens the Amazon app if installed, otherwise Chrome loads the fallback URL.
+      if (!isAmazonUrl(u)) return false;
+      window.location.href = 'intent://' + rest + '#Intent;scheme=https;package=com.amazon.mShop.android.shopping;' +
+        'S.browser_fallback_url=' + encodeURIComponent(u.href) + ';end';
+      return true;
+    }
+
+    if (IS_IOS){
+      // From the home-screen app, x-safari-https:// opens the link in Safari proper (iOS 17+).
+      // In regular Safari, a normal tap already triggers Amazon's universal link, so leave it alone.
+      if (!isStandalone()) return false;
+      var openInSafari = function(){ window.location.href = 'x-safari-' + u.href.replace(/^http:/, 'https:'); };
+      if (isAmazonUrl(u)) tryAppThen('com.amazon.mobile.shopping.web://' + rest, openInSafari);
+      else openInSafari();
+      return true;
+    }
+    return false; // desktop: normal new tab
+  }
+
+  document.addEventListener('click', function(e){
+    var a = e.target.closest && e.target.closest('a.result-link, a.bday-link');
+    if (!a || !a.href) return;
+    if (openWishlist(a.href)) e.preventDefault();
+  });
+
   function copyText(text){
     function fallback(){
       var ta = document.createElement('textarea');
@@ -1402,7 +1459,7 @@
   <button type="button" id="updateBtn">Refresh</button>
 </div>
 <script>
-var APP_VERSION = "6";
+var APP_VERSION = "7";
 (function(){
   var bar = document.getElementById('updateBar');
   var btn = document.getElementById('updateBtn');
